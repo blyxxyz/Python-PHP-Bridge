@@ -167,9 +167,9 @@ abstract class CommandBridge
                 $args = array_map([$this, 'decode'], $args);
                 return Commands::callFun($name, $args);
             case 'listConsts':
-                return Commands::listConsts($data);
+                return Commands::listConsts();
             case 'listFuns':
-                return Commands::listFuns($data);
+                return Commands::listFuns();
             default:
                 throw new \Exception("Unknown command '$command'");
         }

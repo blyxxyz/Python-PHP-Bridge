@@ -46,16 +46,19 @@ class Commands
     /**
      * Get an array of all defined constant names
      *
-     * @param string $prefix TODO
-     *
      * @return array
      */
-    public static function listConsts(string $prefix = ''): array
+    public static function listConsts(): array
     {
         return array_keys(get_defined_constants());
     }
 
-    public static function listFuns(string $prefix = ''): array
+    /**
+     * Get an array of all defined function names
+     *
+     * @return array
+     */
+    public static function listFuns(): array
     {
         $result = [];
         foreach (get_defined_functions() as $functions) {

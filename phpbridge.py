@@ -4,7 +4,7 @@ import os.path
 import subprocess as sp
 import sys
 
-from typing import Any, Callable, IO
+from typing import Any, IO, List
 
 php_server_path = os.path.join(os.path.dirname(__file__), 'server.php')
 
@@ -84,7 +84,7 @@ class PHPBridge:
             raise PHPException(value['message'])
         raise RuntimeError("Unknown type {!r}".format(type_))
 
-    def send_command(self, cmd: str, data: Any) -> Any:
+    def send_command(self, cmd: str, data: Any = None) -> Any:
         self.send(cmd, data)
         return self.decode(self.receive())
 
@@ -93,20 +93,6 @@ class PHPBridge:
         proc = sp.Popen(['php', fname], stdin=sp.PIPE, stderr=sp.PIPE,
                         universal_newlines=True)
         return cls(proc.stdin, proc.stderr)
-
-    def namespace(self, namespace: str):
-        return Namespace(self, namespace)
-
-    def __getitem__(self, item: str):
-        return self.namespace(item)
-
-    @staticmethod
-    def add_namespace(namespace: str, identifier: str) -> str:
-        if not namespace:
-            return identifier
-        if not namespace.endswith('\\'):
-            namespace += '\\'
-        return namespace + identifier
 
 
 class PHPFunction:
@@ -124,46 +110,47 @@ class PHPFunction:
         return "<PHP function {}>".format(self.name)
 
 
-class Getter:
-    def __init__(self, bridge: PHPBridge, namespace: str = '\\') -> None:
+class PHPClass:
+    def __init__(self, bridge: PHPBridge, name: str) -> None:
         self.bridge = bridge
-        self.namespace = namespace
+        self.name = name
 
-    def add_namespace(self, identifier: str) -> str:
-        return self.bridge.add_namespace(self.namespace, identifier)
+    def __call__(self, *args: Any) -> Any:
+        return self.bridge.send_command(
+            'createObject',
+            {'name': self.name,
+             'args': [self.bridge.encode(arg) for arg in args]})
 
-
-class ConstantGetter(Getter):
     def __getattr__(self, attr: str) -> Any:
         return self.bridge.send_command(
-            'getConst', self.add_namespace(attr))
+            'getAttribute', {'object': self.name, 'name': attr})
+
+
+class Getter:
+    def __init__(self, bridge: PHPBridge) -> None:
+        self.bridge = bridge
+
+    def __getattr__(self, attr: str) -> Any:
+        raise NotImplementedError
 
     def __getitem__(self, item: str) -> Any:
         return self.__getattr__(item)
 
-    def __dir__(self):
-        return self.bridge.send_command('listConsts', self.namespace)
+
+class ConstantGetter(Getter):
+    def __getattr__(self, attr: str) -> Any:
+        return self.bridge.send_command('getConst', attr)
+
+    def __dir__(self) -> List[str]:
+        return self.bridge.send_command('listConsts')
 
 
 class FunctionGetter(Getter):
     def __getattr__(self, attr: str) -> PHPFunction:
-        return PHPFunction(self.bridge,
-                           self.add_namespace(attr)
-                           if self.namespace != '\\' else attr)
+        return PHPFunction(self.bridge, attr)
 
-    def __getitem__(self, item: str) -> Callable[..., Any]:
-        return self.__getattr__(item)
-
-    def __dir__(self):
-        return self.bridge.send_command('listFuns', self.namespace)
-
-
-class Namespace:
-    def __init__(self, bridge: PHPBridge, namespace: str) -> None:
-        self.bridge = bridge
-        self.namespace = namespace
-        self.const = ConstantGetter(self.bridge, self.namespace)
-        self.fun = FunctionGetter(self.bridge, self.namespace)
+    def __dir__(self) -> List[str]:
+        return self.bridge.send_command('listFuns')
 
 
 php = PHPBridge.start_process()
