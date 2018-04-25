@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace PythonBridge;
+namespace blyxxyz\PythonServer;
 
 /**
  * A command bridge that uses standard file input and output to communicate.
@@ -10,10 +10,8 @@ namespace PythonBridge;
  * only uses basic Unix facilities, but it interferes with other use of those
  * streams. In particular, any warning or error that's printed will disrupt
  * the communication. It may be more robust to use named pipes instead.
- *
- * @package PythonBridge
  */
-class StdioCommandBridge extends CommandBridge
+class StdioCommandServer extends CommandServer
 {
     /** @var resource  */
     private $in;

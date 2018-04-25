@@ -1,15 +1,13 @@
 <?php
 declare(strict_types=1);
 
-namespace PythonBridge;
+namespace blyxxyz\PythonServer;
 
 /**
  * Provide function-like language constructs as static methods.
  *
  * `isset` and `empty` are not provided because it's impossible for a real
  * function to check whether its argument is defined.
- *
- * @package PythonBridge
  */
 class NonFunctionProxy
 {

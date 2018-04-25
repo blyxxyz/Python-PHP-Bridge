@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace PythonBridge;
+namespace blyxxyz\PythonServer;
 
 /**
  * Process commands from another process
@@ -11,10 +11,8 @@ namespace PythonBridge;
  * method of communication should be defined in inheriting classes, but it's
  * assumed to use JSON or some other format that maps to arrays, strings and
  * numbers.
- *
- * @package PythonBridge
  */
-abstract class CommandBridge
+abstract class CommandServer
 {
     /** @var ObjectStore */
     private $objectStore;

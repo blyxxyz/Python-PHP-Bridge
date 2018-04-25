@@ -1,12 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace PythonBridge;
+namespace blyxxyz\PythonServer;
 
 /**
  * Implements the commands called through the bridge
- *
- * @package PythonBridge
  */
 class Commands
 {

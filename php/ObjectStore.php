@@ -1,12 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace PythonBridge;
+namespace blyxxyz\PythonServer;
 
 /**
  * Stores objects and resources so they can be serialized
- *
- * @package PythonBridge
  */
 class ObjectStore
 {

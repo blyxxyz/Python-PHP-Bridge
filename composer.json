@@ -1,5 +1,5 @@
 {
-    "name": "blyxxyz/python-bridge",
+    "name": "blyxxyz/python-server",
     "description": "A way to call PHP code from Python",
     "type": "library",
     "keywords": ["python"],
@@ -19,6 +19,6 @@
         "php": "^7.0"
     },
     "autoload": {
-        "psr-4": {"PythonBridge\\": "php/"}
+        "psr-4": {"blyxxyz\\PythonServer\\": "php/"}
     }
 }
