@@ -1,7 +1,10 @@
 {
-    "name": "blyxxyz/python-php-bridge",
+    "name": "blyxxyz/python-bridge",
     "description": "A way to call PHP code from Python",
     "type": "library",
+    "keywords": ["python"],
+    "homepage": "https://github.com/blyxxyz/Python-PHP-Bridge",
+    "license": "ISC",
     "require-dev": {
         "vimeo/psalm": "^1.1",
         "squizlabs/php_codesniffer": "^3.2"

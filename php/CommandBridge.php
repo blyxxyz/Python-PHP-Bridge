@@ -191,6 +191,12 @@ abstract class CommandBridge
                 return Commands::listFuns();
             case 'listClasses':
                 return Commands::listClasses();
+            case 'resolveName':
+                return Commands::resolveName($data);
+            case 'repr':
+                return Commands::repr($this->decode($data));
+            case 'str':
+                return Commands::str($this->decode($data));
             default:
                 throw new \Exception("Unknown command '$command'");
         }

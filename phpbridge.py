@@ -69,6 +69,11 @@ class PHPBridge:
         if isinstance(data, PHPObject) and data._bridge is self:
             return {'type': 'object', 'value': {'hash': data._hash}}
 
+        if isinstance(data, PHPFunction) or isinstance(data, PHPClass):
+            # PHP uses strings to represent functions and classes
+            # This unfortunately means they will be strings if they come back
+            return {'type': 'string', 'value': data.__name__}
+
         raise RuntimeError("Can't encode {!r}".format(data))
 
     def decode(self, data: dict) -> Any:
@@ -97,6 +102,20 @@ class PHPBridge:
     def send_command(self, cmd: str, data: Any = None) -> Any:
         self.send(cmd, data)
         return self.decode(self.receive())
+
+    def __dir__(self) -> List[str]:
+        return dir(self.cls) + dir(self.const) + dir(self.fun)
+
+    def __getattr__(self, attr: str) -> Any:
+        kind, content = self.send_command('resolveName', attr)
+        if kind == 'func':
+            return PHPFunction(self, content)
+        elif kind == 'class':
+            return PHPClass(self, content)
+        elif kind == 'const':
+            return content
+        else:
+            raise RuntimeError("Resolved unknown data type {}".format(kind))
 
     @classmethod
     def start_process(cls, fname: str = php_server_path):
@@ -127,11 +146,13 @@ class PHPObject:
         self._hash = hash_
         self._class = cls
 
-    def __repr__(self):
-        kind = 'object' if isinstance(self._hash, str) else 'resource'
-        if self._class is not None:
-            kind = self._class + ' ' + kind
-        return "<PHP {} at {}>".format(kind, self._hash)
+    def __repr__(self) -> str:
+        return "<{}>".format(
+            self._bridge.send_command(
+                'repr', self._bridge.encode(self)).rstrip())
+
+    def __str__(self) -> str:
+        return self._bridge.send_command('str', self._bridge.encode(self))
 
 
 class PHPClass:
@@ -139,13 +160,13 @@ class PHPClass:
         self._bridge = bridge
         self.__name__ = name
 
-    def __call__(self, *args):
+    def __call__(self, *args) -> PHPObject:
         return self._bridge.send_command(
             'createObject',
             {'name': self.__name__,
              'args': [self._bridge.encode(arg) for arg in args]})
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<PHP class '{}'>".format(self.__name__)
 
 

@@ -28,6 +28,7 @@ class StdioCommandBridge extends CommandBridge
         parent::__construct();
         $this->in = fopen($in, 'r');
         $this->out = fopen($out, 'w');
+        static::promoteWarnings();
     }
 
     public function receive(): array
@@ -53,5 +54,18 @@ class StdioCommandBridge extends CommandBridge
         }
         fwrite($this->out, $encoded);
         fwrite($this->out, "\n");
+    }
+
+    /**
+     * @return mixed
+     */
+    private static function promoteWarnings()
+    {
+        return set_error_handler(function (int $errno, string $errstr): bool {
+            if (error_reporting() !== 0) {
+                throw new \ErrorException($errstr);
+            }
+            return false;
+        });
     }
 }
