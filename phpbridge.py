@@ -20,6 +20,7 @@ class PHPBridge:
         self.cls = ClassGetter(self)
         self.const = ConstantGetter(self)
         self.fun = FunctionGetter(self)
+        self.globals = GlobalGetter(self)
 
     def forward_stderr(self) -> None:
         for line in self.output:
@@ -104,7 +105,8 @@ class PHPBridge:
         return self.decode(self.receive())
 
     def __dir__(self) -> List[str]:
-        return dir(self.cls) + dir(self.const) + dir(self.fun)
+        return (dir(self.cls) + dir(self.const) + dir(self.fun) +
+                dir(self.globals))
 
     def __getattr__(self, attr: str) -> Any:
         kind, content = self.send_command('resolveName', attr)
@@ -112,7 +114,7 @@ class PHPBridge:
             return PHPFunction(self, content)
         elif kind == 'class':
             return PHPClass(self, content)
-        elif kind == 'const':
+        elif kind == 'const' or kind == 'global':
             return content
         else:
             raise RuntimeError("Resolved unknown data type {}".format(kind))
@@ -171,22 +173,50 @@ class PHPClass:
 
 
 class Getter:
+    _bridge: PHPBridge
+
     def __init__(self, bridge: PHPBridge) -> None:
-        self._bridge = bridge
+        object.__setattr__(self, '_bridge', bridge)
 
     def __getattr__(self, attr: str) -> Any:
         raise NotImplementedError
 
+    def __setattr__(self, attr: str, value: Any) -> None:
+        raise NotImplementedError
+
     def __getitem__(self, item: str) -> Any:
         return self.__getattr__(item)
+
+    def __setitem__(self, item: str, value: Any) -> None:
+        self.__setattr__(item, value)
 
 
 class ConstantGetter(Getter):
     def __getattr__(self, attr: str) -> Any:
         return self._bridge.send_command('getConst', attr)
 
+    def __setattr__(self, attr: str, value: Any) -> None:
+        return self._bridge.send_command(
+            'setConst',
+            {'name': attr,
+             'value': self._bridge.encode(value)})
+
     def __dir__(self) -> List[str]:
         return self._bridge.send_command('listConsts')
+
+
+class GlobalGetter(Getter):
+    def __getattr__(self, attr: str) -> Any:
+        return self._bridge.send_command('getGlobal', attr)
+
+    def __setattr__(self, attr: str, value: Any) -> None:
+        return self._bridge.send_command(
+            'setGlobal',
+            {'name': attr,
+             'value': self._bridge.encode(value)})
+
+    def __dir__(self) -> List[str]:
+        return self._bridge.send_command('listGlobals')
 
 
 class FunctionGetter(Getter):

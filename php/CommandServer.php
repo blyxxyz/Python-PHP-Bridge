@@ -173,6 +173,16 @@ abstract class CommandServer
         switch ($command) {
             case 'getConst':
                 return Commands::getConst($data);
+            case 'setConst':
+                $name = $data['name'];
+                $value = $this->decode($data['value']);
+                return Commands::setConst($name, $value);
+            case 'getGlobal':
+                return Commands::getGlobal($data);
+            case 'setGlobal':
+                $name = $data['name'];
+                $value = $this->decode($data['value']);
+                return Commands::setGlobal($name, $value);
             case 'callFun':
                 $name = $data['name'];
                 $args = $data['args'];
@@ -185,6 +195,8 @@ abstract class CommandServer
                 return Commands::createObject($name, $args);
             case 'listConsts':
                 return Commands::listConsts();
+            case 'listGlobals':
+                return Commands::listGlobals();
             case 'listFuns':
                 return Commands::listFuns();
             case 'listClasses':

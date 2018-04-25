@@ -31,11 +31,14 @@ foo
 Traceback (most recent call last):
 [...]
 phpbridge.PHPException: Too few arguments to function foo(), 0 passed in [...]/python-php-bridge/php/Commands.php on line 39 and exactly 1 expected
+>>> php._SERVER['REQUEST_TIME']
+1524679655
 ```
 
 Some current features:
   * Calling functions
-  * Accessing constants
+  * Getting and setting constants
+  * Getting and setting global variables
   * Forwarding exceptions
   * Creating PHP objects and passing them back into PHP
   * Tab completion
@@ -45,6 +48,33 @@ Caveats:
   * Returned PHP objects are never garbage collected
   * It's probably pretty slow
 
+Different kinds of things may use the same name, so if there's a constant `foo` and a function `foo`, use `php.fun.foo()` rather than `php.foo()` so it doesn't have to guess. There's
+  * `php.cls` for classes
+  * `php.const` for constants
+  * `php.fun` for functions
+  * `php.globals` for globals
+
+This way of accessing PHP constructs also supports indexing, which is currently needed to use namespaces. For example, to create a `\Foo\Bar` object:
+```python
+>>> php.cls[r'\Foo\Bar']()
+<Foo\Bar Object
+(
+    [biz] => baz
+)>
+```
+(the string is prefixed with an `r` so the backslashes don't need to be escaped)
+
+They also support setting constants and global variables:
+```python
+>>> php.globals.foo = 'bar'
+>>> php.const['baz'] = 'foobar'
+>>> php.eval("""
+... global $foo;
+... return [$foo, baz];
+... """)
+['bar', 'foobar']
+```
+
 The bridge works by piping JSON between the Python process and a PHP process.
 
-There are no dependencies, other than PHP 7.0+ and Python 3.5+. Composer can be used to install development tools and set up autoloading, but it's not necessary.
+There are no dependencies, other than PHP 7.0+ and Python 3.5+. Composer can be used to install development tools and set up autoloading, but it's not required.

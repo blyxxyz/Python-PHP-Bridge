@@ -11,16 +11,72 @@ class Commands
     /**
      * Get a constant by its name
      *
-     * @param string $data
+     * @param string $name
      *
      * @return mixed
      */
-    public static function getConst(string $data)
+    public static function getConst(string $name)
     {
-        if (!defined($data)) {
-            throw new \Exception("Constant '$data' is not defined");
+        if (!defined($name)) {
+            throw new \Exception("Constant '$name' is not defined");
         }
-        return constant($data);
+        return constant($name);
+    }
+
+    /**
+     * Define a constant
+     *
+     * @param string $name
+     * @param mixed $value
+     *
+     * @return null
+     */
+    public static function setConst(string $name, $value)
+    {
+        define($name, $value);
+        return null;
+    }
+
+    /**
+     * Get a global variable
+     *
+     * @param string $name
+     *
+     * @return mixed
+     */
+    public static function getGlobal(string $name)
+    {
+        if (!array_key_exists($name, $GLOBALS)) {
+            throw new \Exception("Global variable '$name' does not exist");
+        }
+        if ($name === 'GLOBALS') {
+            // This doesn't work:
+            // $value = $GLOBALS['GLOBALS'];
+            // $value['GLOBALS'] = null;
+            // It turns $GLOBALS into null. So we do it like this.
+            $result = [];
+            foreach ($GLOBALS as $key => $value) {
+                if ($key !== 'GLOBALS') {
+                    $result[$key] = $value;
+                }
+            }
+            return $result;
+        }
+        return $GLOBALS[$name];
+    }
+
+    /**
+     * Set a global variable
+     *
+     * @param string $name
+     * @param mixed $value
+     *
+     * @return null
+     */
+    public static function setGlobal(string $name, $value)
+    {
+        $GLOBALS[$name] = $value;
+        return null;
     }
 
     /**
@@ -65,6 +121,16 @@ class Commands
     }
 
     /**
+     * Get an array of all global variable names
+     *
+     * @return array
+     */
+    public static function listGlobals(): array
+    {
+        return array_keys($GLOBALS);
+    }
+
+    /**
      * Get an array of names of all defined functions
      *
      * @return array
@@ -104,6 +170,8 @@ class Commands
             return ['func', $name];
         } elseif (class_exists($name)) {
             return ['class', $name];
+        } elseif (array_key_exists($name, $GLOBALS)) {
+            return ['global', static::getGlobal($name)];
         }
         throw new \Exception("Could not resolve name '$name'");
     }
