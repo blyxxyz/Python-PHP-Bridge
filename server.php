@@ -10,5 +10,6 @@ require_once __DIR__ . '/php/CommandBridge.php';
 require_once __DIR__ . '/php/StdioCommandBridge.php';
 require_once __DIR__ . '/php/NonFunctionProxy.php';
 require_once __DIR__ . '/php/Commands.php';
+require_once __DIR__ . '/php/ObjectStore.php';
 
 (new \PythonBridge\StdioCommandBridge)->communicate();

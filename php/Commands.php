@@ -44,6 +44,19 @@ class Commands
     }
 
     /**
+     * Instantiate an object
+     *
+     * @param string $name
+     * @param array $args
+     *
+     * @return object
+     */
+    public static function createObject(string $name, array $args)
+    {
+        return new $name(...$args);
+    }
+
+    /**
      * Get an array of all defined constant names
      *
      * @return array
@@ -54,7 +67,7 @@ class Commands
     }
 
     /**
-     * Get an array of all defined function names
+     * Get an array of names of all defined functions
      *
      * @return array
      */
@@ -65,5 +78,15 @@ class Commands
             $result = array_merge($result, $functions);
         }
         return $result;
+    }
+
+    /**
+     * Get an array of names of all declared classes
+     *
+     * @return array
+     */
+    public static function listClasses(): array
+    {
+        return get_declared_classes();
     }
 }

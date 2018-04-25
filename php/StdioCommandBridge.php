@@ -25,6 +25,7 @@ class StdioCommandBridge extends CommandBridge
         string $in = "php://stdin",
         string $out = "php://stderr"
     ) {
+        parent::__construct();
         $this->in = fopen($in, 'r');
         $this->out = fopen($out, 'w');
     }

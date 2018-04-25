@@ -4,7 +4,7 @@ import os.path
 import subprocess as sp
 import sys
 
-from typing import Any, IO, List
+from typing import Any, IO, List, Union
 
 php_server_path = os.path.join(os.path.dirname(__file__), 'server.php')
 
@@ -17,6 +17,7 @@ class PHPBridge:
     def __init__(self, input_: IO[str], output: IO[str]) -> None:
         self.input = input_
         self.output = output
+        self.cls = ClassGetter(self)
         self.const = ConstantGetter(self)
         self.fun = FunctionGetter(self)
 
@@ -50,6 +51,10 @@ class PHPBridge:
         if isinstance(data, int):
             return {'type': 'integer', 'value': data}
         if isinstance(data, float):
+            if math.isnan(data):
+                data = 'NAN'
+            elif math.isinf(data):
+                data = 'INF'
             return {'type': 'double', 'value': data}
         if data is None:
             return {'type': 'NULL', 'value': data}
@@ -60,6 +65,9 @@ class PHPBridge:
         if isinstance(data, list):
             return {'type': 'array', 'value': [self.encode(item)
                                                for item in data]}
+
+        if isinstance(data, PHPObject) and data._bridge is self:
+            return {'type': 'object', 'value': {'hash': data._hash}}
 
         raise RuntimeError("Can't encode {!r}".format(data))
 
@@ -80,6 +88,8 @@ class PHPBridge:
             elif isinstance(value, dict):
                 return {key: self.decode(value)
                         for key, value in value.items()}
+        elif type_ == 'object':
+            return PHPObject(self, value['hash'], value.get('class'))
         elif type_ == 'thrownException':
             raise PHPException(value['message'])
         raise RuntimeError("Unknown type {!r}".format(type_))
@@ -97,38 +107,51 @@ class PHPBridge:
 
 class PHPFunction:
     def __init__(self, bridge: PHPBridge, name: str) -> None:
-        self.bridge = bridge
-        self.name = name
+        self._bridge = bridge
+        self.__name__ = name
 
     def __call__(self, *args: Any) -> Any:
-        return self.bridge.send_command(
+        return self._bridge.send_command(
             'callFun',
-            {'name': self.name,
-             'args': [self.bridge.encode(arg) for arg in args]})
+            {'name': self.__name__,
+             'args': [self._bridge.encode(arg) for arg in args]})
 
     def __repr__(self) -> str:
-        return "<PHP function {}>".format(self.name)
+        return "<PHP function {}>".format(self.__name__)
+
+
+class PHPObject:
+    def __init__(self, bridge: PHPBridge, hash_: Union[str, int],
+                 cls: str) -> None:
+        self._bridge = bridge
+        self._hash = hash_
+        self._class = cls
+
+    def __repr__(self):
+        kind = 'object' if isinstance(self._hash, str) else 'resource'
+        if self._class is not None:
+            kind = self._class + ' ' + kind
+        return "<PHP {} at {}>".format(kind, self._hash)
 
 
 class PHPClass:
     def __init__(self, bridge: PHPBridge, name: str) -> None:
-        self.bridge = bridge
-        self.name = name
+        self._bridge = bridge
+        self.__name__ = name
 
-    def __call__(self, *args: Any) -> Any:
-        return self.bridge.send_command(
+    def __call__(self, *args):
+        return self._bridge.send_command(
             'createObject',
-            {'name': self.name,
-             'args': [self.bridge.encode(arg) for arg in args]})
+            {'name': self.__name__,
+             'args': [self._bridge.encode(arg) for arg in args]})
 
-    def __getattr__(self, attr: str) -> Any:
-        return self.bridge.send_command(
-            'getAttribute', {'object': self.name, 'name': attr})
+    def __repr__(self):
+        return "<PHP class '{}'>".format(self.__name__)
 
 
 class Getter:
     def __init__(self, bridge: PHPBridge) -> None:
-        self.bridge = bridge
+        self._bridge = bridge
 
     def __getattr__(self, attr: str) -> Any:
         raise NotImplementedError
@@ -139,18 +162,26 @@ class Getter:
 
 class ConstantGetter(Getter):
     def __getattr__(self, attr: str) -> Any:
-        return self.bridge.send_command('getConst', attr)
+        return self._bridge.send_command('getConst', attr)
 
     def __dir__(self) -> List[str]:
-        return self.bridge.send_command('listConsts')
+        return self._bridge.send_command('listConsts')
 
 
 class FunctionGetter(Getter):
     def __getattr__(self, attr: str) -> PHPFunction:
-        return PHPFunction(self.bridge, attr)
+        return PHPFunction(self._bridge, attr)
 
     def __dir__(self) -> List[str]:
-        return self.bridge.send_command('listFuns')
+        return self._bridge.send_command('listFuns')
+
+
+class ClassGetter(Getter):
+    def __getattr__(self, attr: str) -> PHPClass:
+        return PHPClass(self._bridge, attr)
+
+    def __dir__(self) -> List[str]:
+        return self._bridge.send_command('listClasses')
 
 
 php = PHPBridge.start_process()

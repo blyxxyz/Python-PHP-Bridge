@@ -16,6 +16,14 @@ namespace PythonBridge;
  */
 abstract class CommandBridge
 {
+    /** @var ObjectStore */
+    private $objectStore;
+
+    public function __construct()
+    {
+        $this->objectStore = new ObjectStore();
+    }
+
     /**
      * Receive a command from the other side of the bridge
      *
@@ -64,14 +72,18 @@ abstract class CommandBridge
                 'type' => 'array',
                 'value' => array_map([$this, 'encode'], $data)
             ];
+        } elseif (is_object($data) || is_resource($data)) {
+            return [
+                'type' => 'object',
+                'value' => [
+                    'hash' => $this->objectStore->encode($data),
+                    'class' => is_object($data) ? get_class($data) :
+                        get_resource_type($data)
+                ]
+            ];
         } else {
-            if (is_object($data)) {
-                $cls = get_class($data);
-                throw new \Exception("Can't encode object of class '$cls'");
-            } else {
-                $type = gettype($data);
-                throw new \Exception("Can't encode value of type '$type'");
-            }
+            $type = gettype($data);
+            throw new \Exception("Can't encode value of type '$type'");
         }
     }
 
@@ -102,6 +114,8 @@ abstract class CommandBridge
                 return $value;
             case 'array':
                 return array_map([$this, 'decode'], $value);
+            case 'object':
+                return $this->objectStore->decode($value['hash']);
             case 'thrownException':
                 throw new \Exception($value['message']);
             default:
@@ -166,10 +180,17 @@ abstract class CommandBridge
                 $args = $data['args'];
                 $args = array_map([$this, 'decode'], $args);
                 return Commands::callFun($name, $args);
+            case 'createObject':
+                $name = $data['name'];
+                $args = $data['args'];
+                $args = array_map([$this, 'decode'], $args);
+                return Commands::createObject($name, $args);
             case 'listConsts':
                 return Commands::listConsts();
             case 'listFuns':
                 return Commands::listFuns();
+            case 'listClasses':
+                return Commands::listClasses();
             default:
                 throw new \Exception("Unknown command '$command'");
         }
