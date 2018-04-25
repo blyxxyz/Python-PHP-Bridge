@@ -73,11 +73,7 @@ abstract class CommandServer
         } elseif (is_object($data) || is_resource($data)) {
             return [
                 'type' => 'object',
-                'value' => [
-                    'hash' => $this->objectStore->encode($data),
-                    'class' => is_object($data) ? get_class($data) :
-                        get_resource_type($data)
-                ]
+                'value' => $this->objectStore->encode($data)
             ];
         } else {
             $type = gettype($data);
@@ -94,7 +90,6 @@ abstract class CommandServer
      */
     protected function decode(array $data)
     {
-        //['type' => $type, 'value' => $value] = $data;
         $type = $data['type'];
         $value = $data['value'];
         switch ($type) {
@@ -113,7 +108,7 @@ abstract class CommandServer
             case 'array':
                 return array_map([$this, 'decode'], $value);
             case 'object':
-                return $this->objectStore->decode($value['hash']);
+                return $this->objectStore->decode($value);
             case 'thrownException':
                 throw new \Exception($value['message']);
             default:

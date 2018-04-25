@@ -68,7 +68,7 @@ class PHPBridge:
                                                for item in data]}
 
         if isinstance(data, PHPObject) and data._bridge is self:
-            return {'type': 'object', 'value': {'hash': data._hash}}
+            return {'type': 'object', 'value': data._hash}
 
         if isinstance(data, PHPFunction) or isinstance(data, PHPClass):
             # PHP uses strings to represent functions and classes
@@ -95,7 +95,7 @@ class PHPBridge:
                 return {key: self.decode(value)
                         for key, value in value.items()}
         elif type_ == 'object':
-            return PHPObject(self, value['hash'], value.get('class'))
+            return PHPObject(self, value)
         elif type_ == 'thrownException':
             raise PHPException(value['message'])
         raise RuntimeError("Unknown type {!r}".format(type_))
@@ -142,11 +142,9 @@ class PHPFunction:
 
 
 class PHPObject:
-    def __init__(self, bridge: PHPBridge, hash_: Union[str, int],
-                 cls: str) -> None:
+    def __init__(self, bridge: PHPBridge, hash_: Union[str, int]) -> None:
         self._bridge = bridge
         self._hash = hash_
-        self._class = cls
 
     def __repr__(self) -> str:
         return "<{}>".format(
@@ -154,7 +152,10 @@ class PHPObject:
                 'repr', self._bridge.encode(self)).rstrip())
 
     def __str__(self) -> str:
-        return self._bridge.send_command('str', self._bridge.encode(self))
+        try:
+            return self._bridge.send_command('str', self._bridge.encode(self))
+        except PHPException:
+            return repr(self)
 
 
 class PHPClass:
