@@ -45,10 +45,18 @@ abstract class CommandBridge
      */
     protected function encode($data): array
     {
-        if (is_int($data) || is_float($data) || is_string($data) ||
-            is_null($data)) {
+        if (is_int($data) || is_string($data) || is_null($data) ||
+            is_bool($data)) {
             return [
                 'type' => gettype($data),
+                'value' => $data
+            ];
+        } elseif (is_float($data)) {
+            if (is_nan($data) || is_infinite($data)) {
+                $data = (string)$data;
+            }
+            return [
+                'type' => 'double',
                 'value' => $data
             ];
         } elseif (is_array($data)) {
@@ -81,9 +89,16 @@ abstract class CommandBridge
         $value = $data['value'];
         switch ($type) {
             case 'integer':
-            case 'double':
             case 'string':
             case 'NULL':
+            case 'boolean':
+                return $value;
+            case 'double':
+                if ($value === 'NAN') {
+                    return NAN;
+                } elseif ($value === 'INF') {
+                    return INF;
+                }
                 return $value;
             case 'array':
                 return array_map([$this, 'decode'], $value);
@@ -145,47 +160,18 @@ abstract class CommandBridge
     {
         switch ($command) {
             case 'getConst':
-                return $this->getConst($data);
+                return Commands::getConst($data);
             case 'callFun':
                 $name = $data['name'];
                 $args = $data['args'];
                 $args = array_map([$this, 'decode'], $args);
-                return $this->callFun($name, $args);
+                return Commands::callFun($name, $args);
+            case 'listConsts':
+                return Commands::listConsts($data);
+            case 'listFuns':
+                return Commands::listFuns($data);
             default:
                 throw new \Exception("Unknown command '$command'");
         }
-    }
-
-    /**
-     * Get a constant by its name
-     *
-     * @param string $data
-     *
-     * @return mixed
-     */
-    private function getConst(string $data)
-    {
-        if (!defined($data)) {
-            throw new \Exception("Constant '$data' is not defined");
-        }
-        return constant($data);
-    }
-
-    /**
-     * Call a function
-     *
-     * @param string $name
-     * @param array $args
-     *
-     * @return mixed
-     */
-    private function callFun(string $name, array $args)
-    {
-        if (is_callable($name)) {
-            return $name(...$args);
-        } elseif (is_callable([NonFunctionProxy::class, $name])) {
-            return NonFunctionProxy::$name(...$args);
-        }
-        throw new \Exception("Could not resolve function '$name'");
     }
 }

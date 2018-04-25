@@ -41,6 +41,15 @@ class StdioCommandBridge extends CommandBridge
     public function send(array $data)
     {
         $encoded = json_encode($data, JSON_PRESERVE_ZERO_FRACTION);
+        if ($encoded === false) {
+            $encoded = json_encode([
+                'type' => 'thrownException',
+                'value' => [
+                    'type' => 'JSONEncodeError',
+                    'message' => json_last_error_msg()
+                ]
+            ]);
+        }
         fwrite($this->out, $encoded);
         fwrite($this->out, "\n");
     }

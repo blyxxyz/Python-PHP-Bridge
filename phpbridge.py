@@ -1,4 +1,5 @@
 import json
+import math
 import os.path
 import subprocess as sp
 import sys
@@ -44,6 +45,8 @@ class PHPBridge:
     def encode(self, data: Any) -> dict:
         if isinstance(data, str):
             return {'type': 'string', 'value': data}
+        if isinstance(data, bool):
+            return {'type': 'boolean', 'value': data}
         if isinstance(data, int):
             return {'type': 'integer', 'value': data}
         if isinstance(data, float):
@@ -63,7 +66,13 @@ class PHPBridge:
     def decode(self, data: dict) -> Any:
         type_ = data['type']
         value = data['value']
-        if type_ in {'string', 'integer', 'double', 'NULL'}:
+        if type_ in {'string', 'integer', 'NULL', 'boolean'}:
+            return value
+        elif type_ == 'double':
+            if value == 'INF':
+                return math.inf
+            elif value == 'NAN':
+                return math.nan
             return value
         elif type_ == 'array':
             if isinstance(value, list):
@@ -116,7 +125,7 @@ class PHPFunction:
 
 
 class Getter:
-    def __init__(self, bridge: PHPBridge, namespace: str = None) -> None:
+    def __init__(self, bridge: PHPBridge, namespace: str = '\\') -> None:
         self.bridge = bridge
         self.namespace = namespace
 
@@ -132,13 +141,21 @@ class ConstantGetter(Getter):
     def __getitem__(self, item: str) -> Any:
         return self.__getattr__(item)
 
+    def __dir__(self):
+        return self.bridge.send_command('listConsts', self.namespace)
+
 
 class FunctionGetter(Getter):
     def __getattr__(self, attr: str) -> PHPFunction:
-        return PHPFunction(self.bridge, self.add_namespace(attr))
+        return PHPFunction(self.bridge,
+                           self.add_namespace(attr)
+                           if self.namespace != '\\' else attr)
 
     def __getitem__(self, item: str) -> Callable[..., Any]:
         return self.__getattr__(item)
+
+    def __dir__(self):
+        return self.bridge.send_command('listFuns', self.namespace)
 
 
 class Namespace:
