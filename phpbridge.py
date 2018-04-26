@@ -13,6 +13,10 @@ class PHPException(Exception):
     pass
 
 
+class PHPTypeError(TypeError, PHPException):
+    pass
+
+
 class PHPBridge:
     def __init__(self, input_: IO[str], output: IO[str]) -> None:
         self.input = input_
@@ -97,7 +101,13 @@ class PHPBridge:
         elif type_ == 'object':
             return PHPObject(self, value)
         elif type_ == 'thrownException':
-            raise PHPException(value['message'])
+            ex_type = value['type']
+            msg = value['message']
+            if ex_type == 'TypeError':
+                raise PHPTypeError(msg)
+            if ex_type not in {'Exception', 'ErrorException'}:
+                raise PHPException("{}: {}".format(ex_type, msg))
+            raise PHPException(msg)
         raise RuntimeError("Unknown type {!r}".format(type_))
 
     def send_command(self, cmd: str, data: Any = None) -> Any:
@@ -131,7 +141,7 @@ class PHPFunction:
         self._bridge = bridge
         self.__name__ = name
 
-    def __call__(self, *args: Any) -> Any:
+    def __call__(self, *args: List[Any]) -> Any:
         return self._bridge.send_command(
             'callFun',
             {'name': self.__name__,
@@ -155,7 +165,27 @@ class PHPObject:
         try:
             return self._bridge.send_command('str', self._bridge.encode(self))
         except PHPException:
-            return repr(self)
+            return NotImplemented
+
+    def __len__(self):
+        return self._bridge.send_command('count', self._bridge.encode(self))
+
+    def __call__(self, *args: List[Any]) -> Any:
+        return self._bridge.send_command(
+            'callObj',
+            {'obj': self._bridge.encode(self),
+             'args': [self._bridge.encode(arg) for arg in args]})
+
+    def __iter__(self):
+        return self._bridge.send_command(
+            'startIteration', self._bridge.encode(self))
+
+    def __next__(self):
+        status, key, value = self._bridge.send_command(
+            'nextIteration', self._bridge.encode(self))
+        if not status:
+            raise StopIteration
+        return key, value
 
 
 class PHPClass:
@@ -163,7 +193,7 @@ class PHPClass:
         self._bridge = bridge
         self.__name__ = name
 
-    def __call__(self, *args) -> PHPObject:
+    def __call__(self, *args: List[Any]) -> PHPObject:
         return self._bridge.send_command(
             'createObject',
             {'name': self.__name__,

@@ -117,6 +117,18 @@ abstract class CommandServer
     }
 
     /**
+     * Decode an array of values
+     *
+     * @param array<array> $dataItems
+     *
+     * @return array
+     */
+    protected function decodeArray(array $dataItems)
+    {
+        return array_map([$this, 'decode'], $dataItems);
+    }
+
+    /**
      * Encode an exception so it can be thrown on the other side
      *
      * @param \Throwable $exception
@@ -169,25 +181,32 @@ abstract class CommandServer
             case 'getConst':
                 return Commands::getConst($data);
             case 'setConst':
-                $name = $data['name'];
-                $value = $this->decode($data['value']);
-                return Commands::setConst($name, $value);
+                return Commands::setConst(
+                    $data['name'],
+                    $this->decode($data['value'])
+                );
             case 'getGlobal':
                 return Commands::getGlobal($data);
             case 'setGlobal':
-                $name = $data['name'];
-                $value = $this->decode($data['value']);
-                return Commands::setGlobal($name, $value);
+                return Commands::setGlobal(
+                    $data['name'],
+                    $this->decode($data['value'])
+                );
             case 'callFun':
-                $name = $data['name'];
-                $args = $data['args'];
-                $args = array_map([$this, 'decode'], $args);
-                return Commands::callFun($name, $args);
+                return Commands::callFun(
+                    $data['name'],
+                    $this->decodeArray($data['args'])
+                );
+            case 'callObj':
+                return Commands::callObj(
+                    $this->decode($data['obj']),
+                    $this->decodeArray($data['args'])
+                );
             case 'createObject':
-                $name = $data['name'];
-                $args = $data['args'];
-                $args = array_map([$this, 'decode'], $args);
-                return Commands::createObject($name, $args);
+                return Commands::createObject(
+                    $data['name'],
+                    $this->decodeArray($data['args'])
+                );
             case 'listConsts':
                 return Commands::listConsts();
             case 'listGlobals':
@@ -202,6 +221,12 @@ abstract class CommandServer
                 return Commands::repr($this->decode($data));
             case 'str':
                 return Commands::str($this->decode($data));
+            case 'count':
+                return Commands::count($this->decode($data));
+            case 'startIteration':
+                return Commands::startIteration($this->decode($data));
+            case 'nextIteration':
+                return Commands::nextIteration($this->decode($data));
             default:
                 throw new \Exception("Unknown command '$command'");
         }

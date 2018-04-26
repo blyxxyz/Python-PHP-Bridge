@@ -98,6 +98,19 @@ class Commands
     }
 
     /**
+     * Call an object
+     *
+     * @param callable $obj
+     * @param array $args
+     *
+     * @return mixed
+     */
+    public static function callObj($obj, array $args)
+    {
+        return $obj(...$args);
+    }
+
+    /**
      * Instantiate an object
      *
      * @param string $name
@@ -209,5 +222,60 @@ class Commands
     public static function str($value): string
     {
         return (string)$value;
+    }
+
+    /**
+     * Get the count/length of an object.
+     *
+     * @param \Countable $value
+     *
+     * @return int
+     */
+    public static function count(\Countable $value): int
+    {
+        return count($value);
+    }
+
+    /**
+     * Start iterating over something.
+     *
+     * We deliberately return the Generator object so we can get values out
+     * of it in further commands.
+     *
+     * @param iterable $iterable
+     *
+     * @return \Generator
+     */
+    public static function startIteration($iterable): \Generator
+    {
+        /** @psalm-suppress RedundantConditionGivenDocblockType */
+        if (!(is_array($iterable) || $iterable instanceof \Traversable)) {
+            if (is_object($iterable)) {
+                $class = get_class($iterable);
+                throw new \TypeError("'$class' object is not iterable");
+            }
+            $type = gettype($iterable);
+            throw new \TypeError("'$type' value is not iterable");
+        }
+        foreach ($iterable as $key => $value) {
+            yield $key => $value;
+        }
+    }
+
+    /**
+     * Get the next key and value from a generator.
+     *
+     * Returns an array containing a bool indicating whether the generator is
+     * still going, the new key, and the new value.
+     *
+     * @param \Generator $generator
+     *
+     * @return array
+     */
+    public static function nextIteration(\Generator $generator): array
+    {
+        $ret = [$generator->valid(), $generator->key(), $generator->current()];
+        $generator->next();
+        return $ret;
     }
 }
