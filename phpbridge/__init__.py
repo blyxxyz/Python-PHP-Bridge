@@ -6,7 +6,8 @@ import sys
 
 from typing import Any, IO, List, Union
 
-php_server_path = os.path.join(os.path.dirname(__file__), 'server.php')
+php_server_path = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), 'server.php')
 
 
 class PHPException(Exception):
