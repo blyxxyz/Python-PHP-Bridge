@@ -111,6 +111,21 @@ class Commands
     }
 
     /**
+     * Call an object or class method
+     *
+     * @param object|string $obj
+     * @param string $name
+     * @param array $args
+     *
+     * @return mixed
+     */
+    public static function callMethod($obj, string $name, array $args)
+    {
+        $method = [$obj, $name];
+        return $method(...$args);
+    }
+
+    /**
      * Instantiate an object
      *
      * @param string $name
@@ -121,6 +136,146 @@ class Commands
     public static function createObject(string $name, array $args)
     {
         return new $name(...$args);
+    }
+
+    /**
+     * Check whether an offset exists.
+     *
+     * @param \ArrayAccess $obj
+     * @param mixed $offset
+     *
+     * @return bool
+     */
+    public static function hasItem($obj, $offset): bool
+    {
+        return isset($obj[$offset]);
+    }
+
+    /**
+     * Get the value at an offset.
+     *
+     * @param \ArrayAccess $obj
+     * @param mixed $offset
+     *
+     * @return mixed
+     */
+    public static function getItem($obj, $offset)
+    {
+        return $obj[$offset];
+    }
+
+    /**
+     * Set the value at an offset.
+     *
+     * @param \ArrayAccess $obj
+     * @param mixed $offset
+     * @param mixed $value
+     *
+     * @return null
+     */
+    public static function setItem($obj, $offset, $value)
+    {
+        $obj[$offset] = $value;
+        return null;
+    }
+
+    /**
+     * Remove the value at an offset.
+     *
+     * @param \ArrayAccess $obj
+     * @param mixed $offset
+     *
+     * @return null
+     */
+    public static function delItem($obj, $offset)
+    {
+        unset($obj[$offset]);
+        return null;
+    }
+
+    /**
+     * Get an object property.
+     *
+     * @param object $obj
+     * @param string $name
+     *
+     * @return mixed
+     */
+    public static function getProperty($obj, string $name)
+    {
+        /** @noinspection PhpVariableVariableInspection */
+        return $obj->$name;
+    }
+
+    /**
+     * Set an object property to a value.
+     *
+     * @param object $obj
+     * @param string $name
+     * @param mixed $value
+     *
+     * @return null
+     */
+    public static function setProperty($obj, $name, $value)
+    {
+        /** @noinspection PhpVariableVariableInspection */
+        $obj->$name = $value;
+        return null;
+    }
+
+    /**
+     * Get an array of all property names.
+     *
+     * Doesn't work for all objects. For example, properties set on an
+     * ArrayObject don't show up. They don't show up either when the object
+     * is cast to an array, so that's probably related.
+     *
+     * @param object $obj
+     *
+     * @return array
+     */
+    public static function listProperties($obj)
+    {
+        $properties = [];
+        foreach ((new \ReflectionObject($obj))->getProperties() as $property) {
+            if ($property->isPublic()) {
+                $properties[] = $property->getName();
+            }
+        }
+        return $properties;
+    }
+
+    /**
+     * Get a summary of a class
+     *
+     * @param string $class
+     *
+     * @return array
+     */
+    public static function classInfo(string $class): array
+    {
+        $reflectionClass = new \ReflectionClass($class);
+        $info = [
+            'name' => $reflectionClass->getName(),
+            'doc' => $reflectionClass->getDocComment(),
+            'consts' => [],
+            'methods' => [],
+            'interfaces' => $reflectionClass->getInterfaceNames()
+        ];
+        foreach ($reflectionClass->getReflectionConstants() as $constant) {
+            if ($constant->isPublic()) {
+                $info['consts'][$constant->getName()] = $constant->getValue();
+            }
+        }
+        foreach ($reflectionClass->getMethods() as $method) {
+            if ($method->isPublic()) {
+                $info['methods'][$method->getName()] = [
+                    'static' => $method->isStatic(),
+                    'doc' => $method->getDocComment()
+                ];
+            }
+        }
+        return $info;
     }
 
     /**

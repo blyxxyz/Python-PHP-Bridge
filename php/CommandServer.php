@@ -70,10 +70,21 @@ abstract class CommandServer
                 'type' => 'array',
                 'value' => array_map([$this, 'encode'], $data)
             ];
-        } elseif (is_object($data) || is_resource($data)) {
+        } elseif (is_object($data)) {
             return [
                 'type' => 'object',
-                'value' => $this->objectStore->encode($data)
+                'value' => [
+                    'class' => get_class($data),
+                    'hash' => $this->objectStore->encode($data)
+                ]
+            ];
+        } elseif (is_resource($data)) {
+            return [
+                'type' => 'resource',
+                'value' => [
+                    'type' => get_resource_type($data),
+                    'hash' => $this->objectStore->encode($data)
+                ]
             ];
         } else {
             $type = gettype($data);
@@ -106,11 +117,10 @@ abstract class CommandServer
                 }
                 return $value;
             case 'array':
-                return array_map([$this, 'decode'], $value);
+                return $this->decodeArray($value);
             case 'object':
-                return $this->objectStore->decode($value);
-            case 'thrownException':
-                throw new \Exception($value['message']);
+            case 'resource':
+                return $this->objectStore->decode($value['hash']);
             default:
                 throw new \Exception("Unknown type '$type'");
         }
@@ -129,26 +139,6 @@ abstract class CommandServer
     }
 
     /**
-     * Encode an exception so it can be thrown on the other side
-     *
-     * @param \Throwable $exception
-     *
-     * @return array{type: string,
-     *               value: array{type: string,
-     *                            message: string}}
-     */
-    private function encodeException(\Throwable $exception)
-    {
-        return [
-            'type' => 'thrownException',
-            'value' => [
-                'type' => get_class($exception),
-                'message' => $exception->getMessage()
-            ]
-        ];
-    }
-
-    /**
      * Continually listen for commands
      *
      * @return void
@@ -161,7 +151,10 @@ abstract class CommandServer
             try {
                 $response = $this->encode($this->execute($cmd, $data));
             } catch (\Throwable $exception) {
-                $response = $this->encodeException($exception);
+                $response = [
+                    'type' => 'thrownException',
+                    'value' => $this->encode($exception)
+                ];
             }
             $this->send($response);
         }
@@ -171,7 +164,7 @@ abstract class CommandServer
      * Execute a command and return the (unencoded) result
      *
      * @param string $command The name of the command
-     * @param mixed  $data    The parameters of the commands
+     * @param mixed $data The parameters of the commands
      *
      * @return mixed
      */
@@ -202,11 +195,53 @@ abstract class CommandServer
                     $this->decode($data['obj']),
                     $this->decodeArray($data['args'])
                 );
+            case 'callMethod':
+                return Commands::callMethod(
+                    $this->decode($data['obj']),
+                    $data['name'],
+                    $this->decodeArray($data['args'])
+                );
+            case 'hasItem':
+                return Commands::hasItem(
+                    $this->decode($data['obj']),
+                    $this->decode($data['offset'])
+                );
+            case 'getItem':
+                return Commands::getItem(
+                    $this->decode($data['obj']),
+                    $this->decode($data['offset'])
+                );
+            case 'setItem':
+                return Commands::setItem(
+                    $this->decode($data['obj']),
+                    $this->decode($data['offset']),
+                    $this->decode($data['value'])
+                );
+            case 'delItem':
+                return Commands::delItem(
+                    $this->decode($data['obj']),
+                    $this->decode($data['offset'])
+                );
             case 'createObject':
                 return Commands::createObject(
                     $data['name'],
                     $this->decodeArray($data['args'])
                 );
+            case 'getProperty':
+                return Commands::getProperty(
+                    $this->decode($data['obj']),
+                    $data['name']
+                );
+            case 'setProperty':
+                return Commands::setProperty(
+                    $this->decode($data['obj']),
+                    $data['name'],
+                    $this->decode($data['value'])
+                );
+            case 'listProperties':
+                return Commands::listProperties($this->decode($data));
+            case 'classInfo':
+                return Commands::classInfo($data);
             case 'listConsts':
                 return Commands::listConsts();
             case 'listGlobals':

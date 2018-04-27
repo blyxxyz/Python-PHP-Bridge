@@ -1,4 +1,5 @@
 <?php
+/** @noinspection PhpIncludeInspection */
 declare(strict_types=1);
 
 namespace blyxxyz\PythonServer;
@@ -12,6 +13,8 @@ namespace blyxxyz\PythonServer;
 class NonFunctionProxy
 {
     /**
+     * Output one or more strings
+     *
      * @param mixed $arg1
      * @param mixed ...$rest
      *
@@ -26,6 +29,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Output a string
+     *
      * @param mixed $arg
      *
      * @return int
@@ -36,6 +41,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Evaluate a string as PHP code
+     *
      * @param string $code
      *
      * @return mixed
@@ -46,6 +53,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Output a message and terminate the current script
+     *
      * @param mixed $status
      *
      * @return void
@@ -56,6 +65,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Output a message and terminate the current script
+     *
      * @param mixed $status
      *
      * @return void
@@ -66,6 +77,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Include and evaluate the specified file
+     *
      * @param string $file
      *
      * @return mixed
@@ -78,6 +91,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Include and evaluate the specified file
+     *
      * @param string $file
      *
      * @return mixed
@@ -90,6 +105,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Include and evaluate the specified file, unless included before
+     *
      * @param string $file
      *
      * @return mixed
@@ -102,6 +119,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Include and evaluate the specified file, unless included before
+     *
      * @param string $file
      *
      * @return mixed
@@ -120,6 +139,8 @@ class NonFunctionProxy
      */
 
     /**
+     * Cast a value to an integer
+     *
      * @param mixed $val
      *
      * @return int
@@ -130,6 +151,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Cast a value to a boolean
+     *
      * @param mixed $val
      *
      * @return bool
@@ -140,6 +163,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Cast a value to a float
+     *
      * @param mixed $val
      *
      * @return float
@@ -150,6 +175,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Cast a value to a string
+     *
      * @param mixed $val
      *
      * @return string
@@ -160,6 +187,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Cast a value to an array
+     *
      * @param mixed $val
      *
      * @return array
@@ -170,6 +199,8 @@ class NonFunctionProxy
     }
 
     /**
+     * Cast a value to an object
+     *
      * @param mixed $val
      *
      * @return object

@@ -4,18 +4,12 @@ import os.path
 import subprocess as sp
 import sys
 
-from typing import Any, IO, List, Union
+from typing import Any, IO, List, Dict  # noqa: F401
+
+from phpbridge import objects
 
 php_server_path = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), 'server.php')
-
-
-class PHPException(Exception):
-    pass
-
-
-class PHPTypeError(TypeError, PHPException):
-    pass
 
 
 class PHPBridge:
@@ -26,6 +20,8 @@ class PHPBridge:
         self.const = ConstantGetter(self)
         self.fun = FunctionGetter(self)
         self.globals = GlobalGetter(self)
+        self._classes = {}      # type: Dict[str, objects.PHPClass]
+        self._objects = {}      # type: Dict[str, objects.PHPObject]
 
     def forward_stderr(self) -> None:
         for line in self.output:
@@ -65,17 +61,26 @@ class PHPBridge:
         if data is None:
             return {'type': 'NULL', 'value': data}
 
-        if isinstance(data, dict) and all(type(key) is str for key in data):
+        if isinstance(data, dict) and all(
+                isinstance(key, str) or isinstance(key, int)
+                for key in data):
             return {'type': 'array', 'value': {k: self.encode(v)
                                                for k, v in data.items()}}
         if isinstance(data, list):
             return {'type': 'array', 'value': [self.encode(item)
                                                for item in data]}
 
-        if isinstance(data, PHPObject) and data._bridge is self:
-            return {'type': 'object', 'value': data._hash}
+        if isinstance(data, objects.PHPObject) and data._bridge is self:
+            return {'type': 'object',
+                    'value': {'class': data.__class__.__name__,
+                              'hash': data._hash}}
 
-        if isinstance(data, PHPFunction) or isinstance(data, PHPClass):
+        if isinstance(data, objects.PHPResource) and data._bridge is self:
+            return {'type': 'resource',
+                    'value': {'type': data._type,
+                              'hash': data._hash}}
+
+        if isinstance(data, PHPFunction) or isinstance(data, objects.PHPClass):
             # PHP uses strings to represent functions and classes
             # This unfortunately means they will be strings if they come back
             return {'type': 'string', 'value': data.__name__}
@@ -100,15 +105,12 @@ class PHPBridge:
                 return {key: self.decode(value)
                         for key, value in value.items()}
         elif type_ == 'object':
-            return PHPObject(self, value)
+            cls = objects.get_class(self, value['class'])
+            return cls(from_hash=value['hash'])
+        elif type_ == 'resource':
+            return objects.PHPResource(self, value['type'], value['hash'])
         elif type_ == 'thrownException':
-            ex_type = value['type']
-            msg = value['message']
-            if ex_type == 'TypeError':
-                raise PHPTypeError(msg)
-            if ex_type not in {'Exception', 'ErrorException'}:
-                raise PHPException("{}: {}".format(ex_type, msg))
-            raise PHPException(msg)
+            raise self.decode(value)
         raise RuntimeError("Unknown type {!r}".format(type_))
 
     def send_command(self, cmd: str, data: Any = None) -> Any:
@@ -120,11 +122,14 @@ class PHPBridge:
                 dir(self.globals))
 
     def __getattr__(self, attr: str) -> Any:
-        kind, content = self.send_command('resolveName', attr)
+        try:
+            kind, content = self.send_command('resolveName', attr)
+        except objects.Throwable as e:
+            raise AttributeError(*e.args)
         if kind == 'func':
             return PHPFunction(self, content)
         elif kind == 'class':
-            return PHPClass(self, content)
+            return objects.get_class(self, content)
         elif kind == 'const' or kind == 'global':
             return content
         else:
@@ -142,7 +147,7 @@ class PHPFunction:
         self._bridge = bridge
         self.__name__ = name
 
-    def __call__(self, *args: List[Any]) -> Any:
+    def __call__(self, *args) -> Any:
         return self._bridge.send_command(
             'callFun',
             {'name': self.__name__,
@@ -152,60 +157,8 @@ class PHPFunction:
         return "<PHP function {}>".format(self.__name__)
 
 
-class PHPObject:
-    def __init__(self, bridge: PHPBridge, hash_: Union[str, int]) -> None:
-        self._bridge = bridge
-        self._hash = hash_
-
-    def __repr__(self) -> str:
-        return "<{}>".format(
-            self._bridge.send_command(
-                'repr', self._bridge.encode(self)).rstrip())
-
-    def __str__(self) -> str:
-        try:
-            return self._bridge.send_command('str', self._bridge.encode(self))
-        except PHPException:
-            return NotImplemented
-
-    def __len__(self):
-        return self._bridge.send_command('count', self._bridge.encode(self))
-
-    def __call__(self, *args: List[Any]) -> Any:
-        return self._bridge.send_command(
-            'callObj',
-            {'obj': self._bridge.encode(self),
-             'args': [self._bridge.encode(arg) for arg in args]})
-
-    def __iter__(self):
-        return self._bridge.send_command(
-            'startIteration', self._bridge.encode(self))
-
-    def __next__(self):
-        status, key, value = self._bridge.send_command(
-            'nextIteration', self._bridge.encode(self))
-        if not status:
-            raise StopIteration
-        return key, value
-
-
-class PHPClass:
-    def __init__(self, bridge: PHPBridge, name: str) -> None:
-        self._bridge = bridge
-        self.__name__ = name
-
-    def __call__(self, *args: List[Any]) -> PHPObject:
-        return self._bridge.send_command(
-            'createObject',
-            {'name': self.__name__,
-             'args': [self._bridge.encode(arg) for arg in args]})
-
-    def __repr__(self) -> str:
-        return "<PHP class '{}'>".format(self.__name__)
-
-
 class Getter:
-    _bridge: PHPBridge
+    _bridge = None              # type: PHPBridge
 
     def __init__(self, bridge: PHPBridge) -> None:
         object.__setattr__(self, '_bridge', bridge)
@@ -217,7 +170,10 @@ class Getter:
         raise NotImplementedError
 
     def __getitem__(self, item: str) -> Any:
-        return self.__getattr__(item)
+        try:
+            return self.__getattr__(item)
+        except AttributeError as e:
+            raise IndexError(*e.args)
 
     def __setitem__(self, item: str, value: Any) -> None:
         self.__setattr__(item, value)
@@ -225,7 +181,10 @@ class Getter:
 
 class ConstantGetter(Getter):
     def __getattr__(self, attr: str) -> Any:
-        return self._bridge.send_command('getConst', attr)
+        try:
+            return self._bridge.send_command('getConst', attr)
+        except objects.Throwable as e:
+            raise AttributeError(*e.args)
 
     def __setattr__(self, attr: str, value: Any) -> None:
         return self._bridge.send_command(
@@ -239,7 +198,10 @@ class ConstantGetter(Getter):
 
 class GlobalGetter(Getter):
     def __getattr__(self, attr: str) -> Any:
-        return self._bridge.send_command('getGlobal', attr)
+        try:
+            return self._bridge.send_command('getGlobal', attr)
+        except objects.Throwable as e:
+            raise AttributeError(*e.args)
 
     def __setattr__(self, attr: str, value: Any) -> None:
         return self._bridge.send_command(
@@ -253,15 +215,21 @@ class GlobalGetter(Getter):
 
 class FunctionGetter(Getter):
     def __getattr__(self, attr: str) -> PHPFunction:
-        return PHPFunction(self._bridge, attr)
+        try:
+            return PHPFunction(self._bridge, attr)
+        except objects.Throwable as e:
+            raise AttributeError(*e.args)
 
     def __dir__(self) -> List[str]:
         return self._bridge.send_command('listFuns')
 
 
 class ClassGetter(Getter):
-    def __getattr__(self, attr: str) -> PHPClass:
-        return PHPClass(self._bridge, attr)
+    def __getattr__(self, attr: str) -> objects.PHPClass:
+        try:
+            return objects.get_class(self._bridge, attr)
+        except objects.Throwable as e:
+            raise AttributeError(*e.args)
 
     def __dir__(self) -> List[str]:
         return self._bridge.send_command('listClasses')
