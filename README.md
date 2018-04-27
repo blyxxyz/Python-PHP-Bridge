@@ -1,7 +1,7 @@
 This is a Python module for running PHP code. It makes PHP functions, classes, objects, constants and variables available to be used just like regular Python objects.
 
 You can call functions:
-```python
+```
 >>> from phpbridge import php
 >>> php.array_flip(["foo", "bar"])
 {'foo': 0, 'bar': 1}
@@ -12,7 +12,7 @@ foo
 ```
 
 You can create and use objects:
-```python
+```
 >>> php.DateTime
 <PHP class 'DateTime'>
 >>> date = php.DateTime()
@@ -28,7 +28,7 @@ You can create and use objects:
 ```
 
 You can loop over iterators and traversables:
-```python
+```
 >>> for path, file in php.RecursiveIteratorIterator(php.RecursiveDirectoryIterator('.git/logs')):
 ...     print("{}: {}".format(path, file.getSize()))
 ...
@@ -39,7 +39,7 @@ You can loop over iterators and traversables:
 ```
 
 You can get help:
-```python
+```
 >>> NonFunctionProxy = php.cls[r'blyxxyz\PythonServer\NonFunctionProxy']
 >>> NonFunctionProxy
 <PHP class 'blyxxyz\PythonServer\NonFunctionProxy'>
@@ -87,14 +87,14 @@ In PHP, different kinds of things may use the same name. If there's a constant `
   * `php.globals` for globals
 
 This way of accessing PHP constructs also supports indexing, which is currently needed to use namespaces. For example, to use the `\Foo\Bar` class:
-```python
+```
 >>> php.cls[r'\Foo\Bar']
 <PHP class 'Foo\Bar'>
 ```
 (the string is prefixed with an `r` so the backslashes don't need to be escaped)
 
 They also support setting constants and global variables:
-```python
+```
 >>> php.globals.foo = 'bar'
 >>> php.const['baz'] = 'foobar'
 >>> php.eval("""
