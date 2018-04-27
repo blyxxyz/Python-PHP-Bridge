@@ -106,4 +106,4 @@ They also support setting constants and global variables:
 
 The bridge works by piping JSON between the Python process and a PHP process.
 
-There are no dependencies, other than PHP 7.0+ and Python 3.5+. Composer can be used to install development tools and set up autoloading, but it's not required for any basic usage.
+The only dependencies are PHP 7.0+, Python 3.5+, ext-json and ext-reflection. Composer can be used to install development tools and set up autoloading, but it's not required.
