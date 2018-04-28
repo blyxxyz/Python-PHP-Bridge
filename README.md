@@ -25,6 +25,10 @@ You can create and use objects:
 )>
 >>> date.getOffset()
 7200
+>>> php.ArrayAccess
+<PHP interface 'ArrayAccess'>
+>>> issubclass(php.ArrayObject, php.ArrayAccess)
+True
 ```
 
 You can loop over iterators and traversables:
@@ -63,11 +67,22 @@ You can index, and get lengths:
 4
 ```
 
+You can work with PHP's exceptions:
+```
+>>> try:
+...     php.get_resource_type(3)
+... except php.TypeError as e:
+...     print(e.getMessage())
+...
+get_resource_type() expects parameter 1 to be resource, integer given
+```
+
 Some current features:
   * Calling functions
   * Automatic class translation
     * Methods and constants are defined right away based on the PHP class
     * Docblocks are treated like docstrings, so `help` works and is informative
+    * The original inheritance structure is copied
     * Properties are inspected on the fly
   * Creating and using objects
   * Getting and setting constants

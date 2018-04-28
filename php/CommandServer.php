@@ -153,7 +153,8 @@ abstract class CommandServer
             } catch (\Throwable $exception) {
                 $response = [
                     'type' => 'thrownException',
-                    'value' => $this->encode($exception)
+                    'value' => $this->encode($exception),
+                    'message' => $exception->getMessage()
                 ];
             }
             $this->send($response);

@@ -255,12 +255,19 @@ class Commands
     public static function classInfo(string $class): array
     {
         $reflectionClass = new \ReflectionClass($class);
+        $parent = $reflectionClass->getParentClass();
+        if ($parent !== false) {
+            $parent = $parent->getName();
+        }
         $info = [
             'name' => $reflectionClass->getName(),
             'doc' => $reflectionClass->getDocComment(),
             'consts' => [],
             'methods' => [],
-            'interfaces' => $reflectionClass->getInterfaceNames()
+            'interfaces' => $reflectionClass->getInterfaceNames(),
+            'isAbstract' => $reflectionClass->isAbstract(),
+            'isInterface' => $reflectionClass->isInterface(),
+            'parent' => $parent
         ];
         foreach ($reflectionClass->getReflectionConstants() as $constant) {
             if ($constant->isPublic()) {
@@ -319,7 +326,7 @@ class Commands
      */
     public static function listClasses(): array
     {
-        return get_declared_classes();
+        return array_merge(get_declared_classes(), get_declared_interfaces());
     }
 
     /**
@@ -336,7 +343,7 @@ class Commands
         } elseif (function_exists($name) ||
             method_exists(NonFunctionProxy::class, $name)) {
             return ['func', $name];
-        } elseif (class_exists($name)) {
+        } elseif (class_exists($name) || interface_exists($name)) {
             return ['class', $name];
         } elseif (array_key_exists($name, $GLOBALS)) {
             return ['global', static::getGlobal($name)];

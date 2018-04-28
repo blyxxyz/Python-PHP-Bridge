@@ -80,7 +80,8 @@ class PHPBridge:
                     'value': {'type': data._type,
                               'hash': data._hash}}
 
-        if isinstance(data, PHPFunction) or isinstance(data, objects.PHPClass):
+        if (isinstance(data, PHPFunction) or
+                isinstance(data, objects.PHPClass)):
             # PHP uses strings to represent functions and classes
             # This unfortunately means they will be strings if they come back
             return {'type': 'string', 'value': data.__name__}

@@ -1,6 +1,8 @@
 """Translation of PHP classes and objects to Python."""
 
-from typing import Any, List, Optional, Type  # noqa: F401
+from itertools import product
+from typing import Any, Dict, List, Optional, Type  # noqa: F401
+from warnings import warn
 
 MYPY = False
 if MYPY:
@@ -8,20 +10,34 @@ if MYPY:
 
 
 class PHPClass(type):
-    """The metaclass of all PHP classes."""
+    """The metaclass of all PHP classes and interfaces."""
     _bridge = None              # type: PHPBridge
+    _is_abstract = False        # type: bool
+    _is_interface = False       # type: bool
+
+    def __call__(self, *a, **kw):
+        if self._is_interface:
+            raise TypeError("Cannot instantiate interface {}".format(
+                self.__qualname__))
+        elif self._is_abstract:
+            raise TypeError("Cannot instantiate abstract class {}".format(
+                self.__qualname__))
+        return super().__call__(*a, **kw)
 
     def __repr__(self):
+        if self._is_interface:
+            return "<PHP interface '{}'>".format(self.__qualname__)
+        elif self._is_abstract:
+            return "<abstract PHP class '{}'>".format(self.__qualname__)
         return "<PHP class '{}'>".format(self.__qualname__)
 
 
 class PHPObject(metaclass=PHPClass):
-    """The base class all PHP classes inherit from."""
+    """The base class of all instantiatable PHP classes."""
     _bridge = None              # type: PHPBridge
     _hash = None                # type: str
 
-    def __new__(cls, *args, from_hash: Optional[str] = None,
-                super_type: Type = type):
+    def __new__(cls, *args, from_hash: Optional[str] = None):
         """Either create or represent a PHP object.
 
         Args:
@@ -31,14 +47,11 @@ class PHPObject(metaclass=PHPClass):
                        command through the bridge. Otherwise: return the
                        representation of an existing remote PHP object with
                        this hash.
-            super_type: Which superclass's constructor to call. Important for
-                        Throwable, which needs to be constructed as an
-                        Exception.
         """
         if from_hash is not None:
             assert not args
             if from_hash not in cls._bridge._objects:
-                obj = super(super_type, cls).__new__(cls)
+                obj = super().__new__(cls)
                 object.__setattr__(obj, '_bridge', cls._bridge)
                 object.__setattr__(obj, '_hash', from_hash)
                 cls._bridge._objects[obj._hash] = obj
@@ -157,11 +170,6 @@ class Throwable(PHPObject, Exception):
     Both a valid Exception and a valid PHPObject, so can be raised and
     caught.
     """
-    def __new__(cls, *args, from_hash: Optional[str] = None,
-                super_type: Type = Exception):
-        return super().__new__(cls, *args, from_hash=from_hash,
-                               super_type=super_type)
-
     def __init__(self, *args, from_hash: Optional[str] = None) -> None:
         super(Exception, self).__init__(str(self))
 
@@ -178,21 +186,29 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> PHPClass:
     """
     info = bridge.send_command('classInfo', unresolved_classname)
 
+    classname = info['name']            # type: str
+    methods = info['methods']           # type: Dict[str, Dict[str, Any]]
+    interfaces = info['interfaces']     # type: List[str]
+    consts = info['consts']             # type: Dict[str, Any]
+    doc = info['doc']                   # type: str
+    parent = info['parent']             # type: str
+    is_abstract = info['isAbstract']    # type: bool
+    is_interface = info['isInterface']  # type: bool
+
     # "\ArrayObject" resolves to the same class as "ArrayObject", so we want
     # them to be the same Python objects as well
-    classname = info['name']
     if classname in bridge._classes:
         return bridge._classes[classname]
 
-    bindings = {}
+    bindings = {}               # type: Dict[str, Any]
 
-    if info['consts']:
+    if consts:
         # if it's empty it's a list, because of PHP
-        for name, value in info['consts'].items():
+        for name, value in consts.items():
             bindings[name] = value
 
-    if info['methods']:
-        for name, method_info in info['methods'].items():
+    if methods:
+        for name, method_info in methods.items():
             def method(self: PHPObject, *args, name: str = name) -> Any:
                 return bridge.send_command(
                     'callMethod',
@@ -208,24 +224,53 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> PHPClass:
                 # mypy doesn't know classmethods are callable
                 method = classmethod(method)  # type: ignore
 
+            if name in bindings:
+                warn("const {} on class {} will be shadowed by the method "
+                     "with the same name".format(name, classname))
             bindings[name] = method
+
+    bases = [PHPObject]         # type: List[Type]
+    if parent is not False:
+        bases.append(get_class(bridge, parent))
+
+    for interface in interfaces:
+        bases.append(get_class(bridge, interface))
+
+    # Bind the magic methods needed to make these interfaces work
+    # TODO: figure out something less ugly
+    for predef_interface in [Countable, Iterator, Traversable, ArrayAccess,
+                             Throwable]:
+        if classname == predef_interface.__name__:
+            for name, value in predef_interface.__dict__.items():
+                if callable(value):
+                    bindings[name] = value
+            if doc is False:
+                doc = predef_interface.__doc__
+            bases += predef_interface.__mro__[1:]
+
+    # Remove redundant bases
+    while True:
+        for (ind_a, a), (ind_b, b) in product(enumerate(bases),
+                                              enumerate(bases)):
+            if ind_a != ind_b and issubclass(a, b):
+                # Don't use list.remove because maybe a == b
+                # It's cleaner to keep the first occurrence
+                del bases[ind_b]
+                # Restart the loop because we modified bases
+                break
+        else:
+            break
 
     # do this one last to make sure it isn't replaced, it's essential
     bindings['_bridge'] = bridge
 
-    bases = ([PHPObject] if 'Throwable' not in info['interfaces']
-             else [Throwable])  # type: List[Type]
-    for interface in Countable, Traversable, Iterator, ArrayAccess:
-        if interface.__name__ in info['interfaces']:
-            bases.append(interface)
-
-    # If PHPObject is listed first Python can't create a consistent MRO
-    base_tuple = tuple(reversed(bases))
-    cls = PHPClass(info['name'], base_tuple, bindings)
+    cls = PHPClass(classname, tuple(bases), bindings)
     cls._bridge = bridge
+    cls._is_abstract = is_abstract
+    cls._is_interface = is_interface
 
-    if info['doc'] is not False:
-        cls.__doc__ = info['doc']
+    if doc is not False:
+        cls.__doc__ = doc
 
     bridge._classes[classname] = cls
 
