@@ -73,7 +73,7 @@ class PHPObject(metaclass=PHPClass):
     def __str__(self) -> str:
         try:
             return self._bridge.send_command('str', self._bridge.encode(self))
-        except Throwable:
+        except Exception:
             return repr(self)
 
     def __call__(self, *args) -> Any:
@@ -98,80 +98,6 @@ class PHPObject(metaclass=PHPClass):
     def __dir__(self) -> List[str]:
         return super().__dir__() + self._bridge.send_command(
             'listProperties', self._bridge.encode(self))
-
-
-class Countable(PHPObject):
-    """Classes that can be used with count() (PHP) or len() (Python).
-
-    See also: collections.abc.Sized.
-    """
-    def __len__(self) -> int:
-        return self._bridge.send_command('count', self._bridge.encode(self))
-
-
-class Iterator(PHPObject):
-    """Interface for objects that can be iterated.
-
-    See also: collections.abc.Iterator.
-    """
-    def __next__(self) -> Any:
-        status, key, value = self._bridge.send_command(
-            'nextIteration', self._bridge.encode(self))
-        if not status:
-            raise StopIteration
-        return key, value
-
-
-class Traversable(PHPObject):
-    """Interface to detect if a class is traversable using a for(each) loop.
-
-    See also: collections.abc.Iterable.
-    """
-    def __iter__(self) -> Iterator:
-        return self._bridge.send_command(
-            'startIteration', self._bridge.encode(self))
-
-
-class ArrayAccess(PHPObject):
-    """Interface to provide accessing objects as arrays.
-
-    Note that the "in" operator only ever checks for valid keys when it comes
-    to this class. It's less general than the usual possibilities.
-    """
-    def __contains__(self, item: Any) -> bool:
-        return self._bridge.send_command(
-            'hasItem',
-            {'obj': self._bridge.encode(self),
-             'offset': self._bridge.encode(item)})
-
-    def __getitem__(self, item: Any) -> Any:
-        return self._bridge.send_command(
-            'getItem',
-            {'obj': self._bridge.encode(self),
-             'offset': self._bridge.encode(item)})
-
-    def __setitem__(self, item: Any, value: Any) -> None:
-        self._bridge.send_command(
-            'setItem',
-            {'obj': self._bridge.encode(self),
-             'offset': self._bridge.encode(item),
-             'value': self._bridge.encode(value)})
-
-    def __delitem__(self, item: Any) -> None:
-        self._bridge.send_command(
-            'delItem',
-            {'obj': self._bridge.encode(self),
-             'offset': self._bridge.encode(item)})
-
-
-class Throwable(PHPObject, Exception):
-    """An exception created in PHP.
-
-    Both a valid Exception and a valid PHPObject, so can be raised and
-    caught.
-    """
-    def __init__(self, *args, from_hash: Optional[str] = None) -> None:
-        super(Exception, self).__init__(str(self))
 
 
 def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> PHPClass:
@@ -238,15 +164,15 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> PHPClass:
 
     # Bind the magic methods needed to make these interfaces work
     # TODO: figure out something less ugly
-    for predef_interface in [Countable, Iterator, Traversable, ArrayAccess,
-                             Throwable]:
-        if classname == predef_interface.__name__:
-            for name, value in predef_interface.__dict__.items():
-                if callable(value):
-                    bindings[name] = value
-            if doc is False:
-                doc = predef_interface.__doc__
-            bases += predef_interface.__mro__[1:]
+    from phpbridge.classes import predef_classes
+    if classname in predef_classes:
+        predef = predef_classes[classname]
+        for name, value in predef.__dict__.items():
+            if callable(value):
+                bindings[name] = value
+        if doc is False:
+            doc = predef.__doc__
+        bases += predef.__bases__
 
     # Remove redundant bases
     while True:

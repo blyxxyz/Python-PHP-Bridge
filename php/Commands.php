@@ -1,7 +1,10 @@
 <?php
+/** @noinspection PhpVariableVariableInspection */
 declare(strict_types=1);
 
 namespace blyxxyz\PythonServer;
+
+use blyxxyz\PythonServer\Exceptions\AttributeError;
 
 /**
  * Implements the commands called through the bridge
@@ -203,8 +206,14 @@ class Commands
      */
     public static function getProperty($obj, string $name)
     {
-        /** @noinspection PhpVariableVariableInspection */
-        return $obj->$name;
+        if (isset($obj->$name)) {
+            return $obj->$name;
+        } else {
+            $class = get_class($obj);
+            throw new AttributeError(
+                "'$class' object has no property '$name'"
+            );
+        }
     }
 
     /**
@@ -347,8 +356,9 @@ class Commands
             return ['class', $name];
         } elseif (array_key_exists($name, $GLOBALS)) {
             return ['global', static::getGlobal($name)];
+        } else {
+            return ['none', null];
         }
-        throw new \Exception("Could not resolve name '$name'");
     }
 
     /**

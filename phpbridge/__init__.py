@@ -123,16 +123,17 @@ class PHPBridge:
                 dir(self.globals))
 
     def __getattr__(self, attr: str) -> Any:
-        try:
-            kind, content = self.send_command('resolveName', attr)
-        except objects.Throwable as e:
-            raise AttributeError(*e.args)
+        kind, content = self.send_command('resolveName', attr)
         if kind == 'func':
             return PHPFunction(self, content)
         elif kind == 'class':
             return objects.get_class(self, content)
         elif kind == 'const' or kind == 'global':
             return content
+        elif kind == 'none':
+            raise AttributeError(
+                "No function, class, constant or global variable '{}' "
+                "exists".format(attr))
         else:
             raise RuntimeError("Resolved unknown data type {}".format(kind))
 
@@ -177,21 +178,27 @@ class Getter:
             raise IndexError(*e.args)
 
     def __setitem__(self, item: str, value: Any) -> None:
-        self.__setattr__(item, value)
+        try:
+            self.__setattr__(item, value)
+        except AttributeError as e:
+            raise IndexError(*e.args)
 
 
 class ConstantGetter(Getter):
     def __getattr__(self, attr: str) -> Any:
         try:
             return self._bridge.send_command('getConst', attr)
-        except objects.Throwable as e:
-            raise AttributeError(*e.args)
+        except Exception:
+            raise AttributeError("Constant '{}' does not exist".format(attr))
 
     def __setattr__(self, attr: str, value: Any) -> None:
-        return self._bridge.send_command(
-            'setConst',
-            {'name': attr,
-             'value': self._bridge.encode(value)})
+        try:
+            return self._bridge.send_command(
+                'setConst',
+                {'name': attr,
+                 'value': self._bridge.encode(value)})
+        except Exception as e:
+            raise AttributeError(*e.args)
 
     def __dir__(self) -> List[str]:
         return self._bridge.send_command('listConsts')
@@ -201,14 +208,18 @@ class GlobalGetter(Getter):
     def __getattr__(self, attr: str) -> Any:
         try:
             return self._bridge.send_command('getGlobal', attr)
-        except objects.Throwable as e:
-            raise AttributeError(*e.args)
+        except Exception:
+            raise AttributeError(
+                "Global variable '{}' does not exist".format(attr))
 
     def __setattr__(self, attr: str, value: Any) -> None:
-        return self._bridge.send_command(
-            'setGlobal',
-            {'name': attr,
-             'value': self._bridge.encode(value)})
+        try:
+            return self._bridge.send_command(
+                'setGlobal',
+                {'name': attr,
+                 'value': self._bridge.encode(value)})
+        except Exception as e:
+            raise AttributeError(*e.args)
 
     def __dir__(self) -> List[str]:
         return self._bridge.send_command('listGlobals')
@@ -218,8 +229,8 @@ class FunctionGetter(Getter):
     def __getattr__(self, attr: str) -> PHPFunction:
         try:
             return PHPFunction(self._bridge, attr)
-        except objects.Throwable as e:
-            raise AttributeError(*e.args)
+        except Exception:
+            raise AttributeError("Function '{}' does not exist".format(attr))
 
     def __dir__(self) -> List[str]:
         return self._bridge.send_command('listFuns')
@@ -229,8 +240,8 @@ class ClassGetter(Getter):
     def __getattr__(self, attr: str) -> objects.PHPClass:
         try:
             return objects.get_class(self._bridge, attr)
-        except objects.Throwable as e:
-            raise AttributeError(*e.args)
+        except Exception:
+            raise AttributeError("Class '{}' does not exist".format(attr))
 
     def __dir__(self) -> List[str]:
         return self._bridge.send_command('listClasses')

@@ -6,10 +6,25 @@
 
 declare(strict_types = 1);
 
-require_once __DIR__ . '/php/CommandServer.php';
-require_once __DIR__ . '/php/StdioCommandServer.php';
-require_once __DIR__ . '/php/NonFunctionProxy.php';
-require_once __DIR__ . '/php/Commands.php';
-require_once __DIR__ . '/php/ObjectStore.php';
+
+// Adapted from the PHP-FIG example autoloader
+spl_autoload_register(function ($class) {
+    $prefix = 'blyxxyz\\PythonServer\\';
+    $base_dir = __DIR__ . '/php/';
+
+    $len = strlen($prefix);
+    if (strncmp($prefix, $class, $len) !== 0) {
+        return;
+    }
+
+    $relative_class = substr($class, $len);
+
+    $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
+
+    if (file_exists($file)) {
+        /** @noinspection PhpIncludeInspection */
+        require $file;
+    }
+});
 
 (new \blyxxyz\PythonServer\StdioCommandServer)->communicate();
