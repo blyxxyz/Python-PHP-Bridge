@@ -12,7 +12,7 @@ use blyxxyz\PythonServer\Exceptions\AttributeError;
 class Commands
 {
     /**
-     * Get a constant by its name
+     * Get a constant by its name.
      *
      * @param string $name
      *
@@ -27,7 +27,7 @@ class Commands
     }
 
     /**
-     * Define a constant
+     * Define a constant.
      *
      * @param string $name
      * @param mixed $value
@@ -41,7 +41,7 @@ class Commands
     }
 
     /**
-     * Get a global variable
+     * Get a global variable.
      *
      * @param string $name
      *
@@ -69,7 +69,7 @@ class Commands
     }
 
     /**
-     * Set a global variable
+     * Set a global variable.
      *
      * @param string $name
      * @param mixed $value
@@ -83,7 +83,7 @@ class Commands
     }
 
     /**
-     * Call a function
+     * Call a function.
      *
      * @param string $name
      * @param array $args
@@ -101,7 +101,7 @@ class Commands
     }
 
     /**
-     * Call an object
+     * Call an object.
      *
      * @param callable $obj
      * @param array $args
@@ -114,7 +114,7 @@ class Commands
     }
 
     /**
-     * Call an object or class method
+     * Call an object or class method.
      *
      * @param object|string $obj
      * @param string $name
@@ -129,7 +129,7 @@ class Commands
     }
 
     /**
-     * Instantiate an object
+     * Instantiate an object.
      *
      * @param string $name
      * @param array $args
@@ -287,7 +287,12 @@ class Commands
             if ($method->isPublic()) {
                 $info['methods'][$method->getName()] = [
                     'static' => $method->isStatic(),
-                    'doc' => $method->getDocComment()
+                    'doc' => $method->getDocComment(),
+                    'params' => array_map(
+                        [static::class, 'paramInfo'],
+                        $method->getParameters()
+                    ),
+                    'returnType' => static::typeInfo($method->getReturnType())
                 ];
             }
         }
@@ -295,7 +300,73 @@ class Commands
     }
 
     /**
-     * Get an array of all defined constant names
+     * Get detailed information about a function.
+     *
+     * @param string $name
+     *
+     * @return array
+     */
+    public static function funcInfo(string $name): array
+    {
+        if (is_callable($name) && is_string($name)) {
+            $function = new \ReflectionFunction($name);
+        } elseif (method_exists(NonFunctionProxy::class, $name)) {
+            $function = (new \ReflectionClass(NonFunctionProxy::class))
+                ->getMethod($name);
+        } else {
+            throw new \Exception("Could not resolve function '$name'");
+        }
+        return [
+            'name' => $function->getName(),
+            'doc' => $function->getDocComment(),
+            'params' => array_map(
+                [static::class, 'paramInfo'],
+                $function->getParameters()
+            ),
+            'returnType' => static::typeInfo($function->getReturnType())
+        ];
+    }
+
+    /**
+     * Serialize information about a function parameter.
+     *
+     * @param \ReflectionParameter $parameter
+     *
+     * @return array
+     */
+    private static function paramInfo(\ReflectionParameter $parameter): array
+    {
+        $hasDefault = $parameter->isDefaultValueAvailable();
+        return [
+            'name' => $parameter->getName(),
+            'type' => static::typeInfo($parameter->getType()),
+            'hasDefault' => $hasDefault,
+            'default' => $hasDefault ? $parameter->getDefaultValue() : null,
+            'variadic' => $parameter->isVariadic()
+        ];
+    }
+
+    /**
+     * Serialize information about a parameter or return type.
+     *
+     * @param \ReflectionType|null $type
+     *
+     * @return array|null
+     */
+    private static function typeInfo(\ReflectionType $type = null)
+    {
+        if ($type === null) {
+            return null;
+        }
+        return [
+            'name' => $type->getName(),
+            'isClass' => !$type->isBuiltin(),
+            'nullable' => $type->allowsNull(),
+        ];
+    }
+
+    /**
+     * Get an array of all defined constant names.
      *
      * @return array
      */
@@ -305,7 +376,7 @@ class Commands
     }
 
     /**
-     * Get an array of all global variable names
+     * Get an array of all global variable names.
      *
      * @return array
      */
@@ -315,7 +386,7 @@ class Commands
     }
 
     /**
-     * Get an array of names of all defined functions
+     * Get an array of names of all defined functions.
      *
      * @return array
      */
@@ -329,7 +400,7 @@ class Commands
     }
 
     /**
-     * Get an array of names of all declared classes
+     * Get an array of names of all declared classes.
      *
      * @return array
      */
@@ -339,7 +410,7 @@ class Commands
     }
 
     /**
-     * Try to guess what a name represents
+     * Try to guess what a name represents.
      *
      * @param string $name
      *

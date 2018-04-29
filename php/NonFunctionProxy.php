@@ -13,7 +13,7 @@ namespace blyxxyz\PythonServer;
 class NonFunctionProxy
 {
     /**
-     * Output one or more strings
+     * Output one or more strings.
      *
      * @param mixed $arg1
      * @param mixed ...$rest
@@ -29,7 +29,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Output a string
+     * Output a string.
      *
      * @param mixed $arg
      *
@@ -41,7 +41,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Evaluate a string as PHP code
+     * Evaluate a string as PHP code.
      *
      * @param string $code
      *
@@ -53,7 +53,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Output a message and terminate the current script
+     * Output a message and terminate the current script.
      *
      * @param mixed $status
      *
@@ -65,7 +65,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Output a message and terminate the current script
+     * Output a message and terminate the current script.
      *
      * @param mixed $status
      *
@@ -77,7 +77,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Include and evaluate the specified file
+     * Include and evaluate the specified file.
      *
      * @param string $file
      *
@@ -91,7 +91,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Include and evaluate the specified file
+     * Include and evaluate the specified file.
      *
      * @param string $file
      *
@@ -105,7 +105,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Include and evaluate the specified file, unless included before
+     * Include and evaluate the specified file, unless included before.
      *
      * @param string $file
      *
@@ -119,7 +119,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Include and evaluate the specified file, unless included before
+     * Include and evaluate the specified file, unless included before.
      *
      * @param string $file
      *
@@ -139,7 +139,7 @@ class NonFunctionProxy
      */
 
     /**
-     * Cast a value to an integer
+     * Cast a value to an integer.
      *
      * @param mixed $val
      *
@@ -151,7 +151,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Cast a value to a boolean
+     * Cast a value to a boolean.
      *
      * @param mixed $val
      *
@@ -163,7 +163,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Cast a value to a float
+     * Cast a value to a float.
      *
      * @param mixed $val
      *
@@ -175,7 +175,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Cast a value to a string
+     * Cast a value to a string.
      *
      * @param mixed $val
      *
@@ -187,7 +187,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Cast a value to an array
+     * Cast a value to an array.
      *
      * @param mixed $val
      *
@@ -199,7 +199,7 @@ class NonFunctionProxy
     }
 
     /**
-     * Cast a value to an object
+     * Cast a value to an object.
      *
      * @param mixed $val
      *

@@ -243,6 +243,8 @@ abstract class CommandServer
                 return Commands::listProperties($this->decode($data));
             case 'classInfo':
                 return Commands::classInfo($data);
+            case 'funcInfo':
+                return Commands::funcInfo($data);
             case 'listConsts':
                 return Commands::listConsts();
             case 'listGlobals':

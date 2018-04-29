@@ -1,4 +1,4 @@
-This is a Python module for running PHP code. It makes PHP functions, classes, objects, constants and variables available to be used just like regular Python objects.
+This is a Python module for running PHP code. It makes PHP functions, classes, objects, constants and variables available to be used just like regular Python versions.
 
 You can call functions:
 ```
@@ -44,18 +44,41 @@ You can loop over iterators and traversables:
 
 You can get help:
 ```
+>>> help(php.echo)
+Help on function echo:
+
+echo(arg1, *rest)
+    Output one or more strings.
+
+    @param mixed $arg1
+    @param mixed ...$rest
+
+    @return void
 >>> NonFunctionProxy = php.cls[r'blyxxyz\PythonServer\NonFunctionProxy']
 >>> NonFunctionProxy
 <PHP class 'blyxxyz\PythonServer\NonFunctionProxy'>
 >>> help(NonFunctionProxy)
-Help on class blyxxyz\PythonServer\NonFunctionProxy in module phpbridge.objects:
+Help on class blyxxyz\PythonServer\NonFunctionProxy:
 
-class blyxxyz\PythonServer\NonFunctionProxy(PHPObject)
- |  /**
- |  * Provide function-like language constructs as static methods.
- |  *
- |  * `isset` and `empty` are not provided because it's impossible for a real
- |  * function to check whether its argument is defined.
+class blyxxyz\PythonServer\NonFunctionProxy(phpbridge.objects.PHPObject)
+ |  Provide function-like language constructs as static methods.
+ |
+ |  `isset` and `empty` are not provided because it's impossible for a real
+ |  function to check whether its argument is defined.
+ |
+ |  Method resolution order:
+ |      blyxxyz\PythonServer\NonFunctionProxy
+ |      phpbridge.objects.PHPObject
+ |      builtins.object
+ |
+ |  Class methods defined here:
+ |
+ |  array(val) -> dict from phpbridge.objects.PHPClass
+ |      Cast a value to an array
+ |
+ |      @param mixed $val
+ |
+ |      @return array
 [...]
 ```
 
@@ -78,8 +101,8 @@ get_resource_type() expects parameter 1 to be resource, integer given
 ```
 
 Some current features:
-  * Calling functions
-  * Automatic class translation
+  * Calling and inspecting PHP functions
+  * Using PHP classes like Python classes
     * Methods and constants are defined right away based on the PHP class
     * Docblocks are treated like docstrings, so `help` works and is informative
     * The original inheritance structure is copied

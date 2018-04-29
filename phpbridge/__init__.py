@@ -3,10 +3,11 @@ import math
 import os.path
 import subprocess as sp
 import sys
+import types
 
-from typing import Any, IO, List, Dict  # noqa: F401
+from typing import Any, Callable, IO, List, Dict  # noqa: F401
 
-from phpbridge import objects
+from phpbridge import functions, objects
 
 php_server_path = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), 'server.php')
@@ -22,6 +23,7 @@ class PHPBridge:
         self.globals = GlobalGetter(self)
         self._classes = {}      # type: Dict[str, objects.PHPClass]
         self._objects = {}      # type: Dict[str, objects.PHPObject]
+        self._functions = {}    # type: Dict[str, Callable]
 
     def forward_stderr(self) -> None:
         for line in self.output:
@@ -80,8 +82,9 @@ class PHPBridge:
                     'value': {'type': data._type,
                               'hash': data._hash}}
 
-        if (isinstance(data, PHPFunction) or
-                isinstance(data, objects.PHPClass)):
+        if ((isinstance(data, types.FunctionType) and
+                getattr(data, '_bridge', None) is self) or
+                isinstance(data, objects.PHPClass) and data._bridge is self):
             # PHP uses strings to represent functions and classes
             # This unfortunately means they will be strings if they come back
             return {'type': 'string', 'value': data.__name__}
@@ -125,7 +128,7 @@ class PHPBridge:
     def __getattr__(self, attr: str) -> Any:
         kind, content = self.send_command('resolveName', attr)
         if kind == 'func':
-            return PHPFunction(self, content)
+            return functions.get_function(self, content)
         elif kind == 'class':
             return objects.get_class(self, content)
         elif kind == 'const' or kind == 'global':
@@ -142,21 +145,6 @@ class PHPBridge:
         proc = sp.Popen(['php', fname], stdin=sp.PIPE, stderr=sp.PIPE,
                         universal_newlines=True)
         return cls(proc.stdin, proc.stderr)
-
-
-class PHPFunction:
-    def __init__(self, bridge: PHPBridge, name: str) -> None:
-        self._bridge = bridge
-        self.__name__ = name
-
-    def __call__(self, *args) -> Any:
-        return self._bridge.send_command(
-            'callFun',
-            {'name': self.__name__,
-             'args': [self._bridge.encode(arg) for arg in args]})
-
-    def __repr__(self) -> str:
-        return "<PHP function {}>".format(self.__name__)
 
 
 class Getter:
@@ -226,11 +214,8 @@ class GlobalGetter(Getter):
 
 
 class FunctionGetter(Getter):
-    def __getattr__(self, attr: str) -> PHPFunction:
-        try:
-            return PHPFunction(self._bridge, attr)
-        except Exception:
-            raise AttributeError("Function '{}' does not exist".format(attr))
+    def __getattr__(self, attr: str) -> Callable:
+        return functions.get_function(self._bridge, attr)
 
     def __dir__(self) -> List[str]:
         return self._bridge.send_command('listFuns')
@@ -238,10 +223,7 @@ class FunctionGetter(Getter):
 
 class ClassGetter(Getter):
     def __getattr__(self, attr: str) -> objects.PHPClass:
-        try:
-            return objects.get_class(self._bridge, attr)
-        except Exception:
-            raise AttributeError("Class '{}' does not exist".format(attr))
+        return objects.get_class(self._bridge, attr)
 
     def __dir__(self) -> List[str]:
         return self._bridge.send_command('listClasses')

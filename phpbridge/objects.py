@@ -1,8 +1,11 @@
 """Translation of PHP classes and objects to Python."""
 
 from itertools import product
-from typing import Any, Dict, List, Optional, Type  # noqa: F401
+from typing import Any, Callable, Dict, List, Optional, Type  # noqa: F401
 from warnings import warn
+
+from phpbridge.functions import make_signature
+from phpbridge import utils
 
 MYPY = False
 if MYPY:
@@ -100,15 +103,35 @@ class PHPObject(metaclass=PHPClass):
             'listProperties', self._bridge.encode(self))
 
 
-def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> PHPClass:
+def make_method(bridge, classname, name, info):
+
+    def method(self: PHPObject, *args) -> Any:
+        return bridge.send_command(
+            'callMethod',
+            {'obj': bridge.encode(self),
+             'name': name,
+             'args': [bridge.encode(arg) for arg in args]})
+
+    method.__module__ = '<PHP>'
+    method.__name__ = name
+    method.__qualname__ = '<PHP>.{}.{}'.format(classname, name)
+
+    if info['doc'] is not False:
+        method.__doc__ = utils.convert_docblock(info['doc'])
+
+    if info['static']:
+        # mypy doesn't know classmethods are callable
+        method = classmethod(method)  # type: ignore
+
+    return method
+
+
+def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     """Create and register a PHPClass.
 
     Args:
         bridge: The bridge the class belongs to.
         unresolved_classname: The name of the class.
-
-    Return:
-        A PHPClass, possibly newly created, possibly looked up.
     """
     info = bridge.send_command('classInfo', unresolved_classname)
 
@@ -124,9 +147,11 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> PHPClass:
     # "\ArrayObject" resolves to the same class as "ArrayObject", so we want
     # them to be the same Python objects as well
     if classname in bridge._classes:
-        return bridge._classes[classname]
+        bridge._classes[unresolved_classname] = bridge._classes[classname]
+        return
 
     bindings = {}               # type: Dict[str, Any]
+    created_methods = {}        # type: Dict[str, Callable]
 
     if consts:
         # if it's empty it's a list, because of PHP
@@ -135,25 +160,12 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> PHPClass:
 
     if methods:
         for name, method_info in methods.items():
-            def method(self: PHPObject, *args, name: str = name) -> Any:
-                return bridge.send_command(
-                    'callMethod',
-                    {'obj': bridge.encode(self),
-                     'name': name,
-                     'args': [bridge.encode(arg) for arg in args]})
-
-            method.__name__ = name
-            if method_info['doc'] is not False:
-                method.__doc__ = method_info['doc']
-
-            if method_info['static']:
-                # mypy doesn't know classmethods are callable
-                method = classmethod(method)  # type: ignore
-
+            method = make_method(bridge, classname, name, method_info)
             if name in bindings:
                 warn("const {} on class {} will be shadowed by the method "
                      "with the same name".format(name, classname))
             bindings[name] = method
+            created_methods[name] = method
 
     bases = [PHPObject]         # type: List[Type]
     if parent is not False:
@@ -195,18 +207,28 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> PHPClass:
     cls._is_abstract = is_abstract
     cls._is_interface = is_interface
 
-    if doc is not False:
-        cls.__doc__ = doc
+    cls.__doc__ = utils.convert_docblock(doc)
+    cls.__module__ = '<PHP>'
 
+    bridge._classes[unresolved_classname] = cls
     bridge._classes[classname] = cls
 
-    return cls
+    # Only now do we attach signatures, because the signatures may contain the
+    # class we just registered
+    if methods:
+        for name, method_info in methods.items():
+            func = created_methods[name]
+            if method_info['static']:
+                # classmethod
+                func = func.__func__  # type: ignore
+            signature = make_signature(bridge, method_info, add_first='self')
+            func.__signature__ = signature  # type: ignore
 
 
 def get_class(bridge: 'PHPBridge', name: str) -> PHPClass:
     """Get the PHPClass that a name resolves to."""
     if name not in bridge._classes:
-        bridge._classes[name] = create_class(bridge, name)
+        create_class(bridge, name)
     return bridge._classes[name]
 
 
