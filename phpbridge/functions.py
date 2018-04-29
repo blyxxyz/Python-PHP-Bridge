@@ -50,6 +50,7 @@ def make_signature(bridge: 'PHPBridge', info: Dict[str, Any],
             kind=Parameter.POSITIONAL_OR_KEYWORD,
             default=Parameter.empty,
             annotation=Parameter.empty))
+        used_names.add(add_first)
 
     for param in info['params']:
         for param_name in different_name(param['name']):
