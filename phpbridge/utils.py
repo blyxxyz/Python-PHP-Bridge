@@ -34,7 +34,7 @@ def parse_args(signature: Signature, orig_args: Tuple,
 
     If no keyword arguments are provided, args is always returned unchanged.
     This ensures that it's possible to call a function even if the signature
-    is inaccurate.
+    is inaccurate. inspect.Signature.bind is similar, but less forgiving.
     """
     if not orig_kwargs:
         return orig_args

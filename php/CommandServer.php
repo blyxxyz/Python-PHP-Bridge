@@ -239,8 +239,13 @@ abstract class CommandServer
                     $data['name'],
                     $this->decode($data['value'])
                 );
-            case 'listProperties':
-                return Commands::listProperties($this->decode($data));
+            case 'unsetProperty':
+                return Commands::unsetProperty(
+                    $this->decode($data['obj']),
+                    $data['name']
+                );
+            case 'listNonDefaultProperties':
+                return Commands::listNonDefaultProperties($this->decode($data));
             case 'classInfo':
                 return Commands::classInfo($data);
             case 'funcInfo':

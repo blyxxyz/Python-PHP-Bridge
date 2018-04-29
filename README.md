@@ -119,7 +119,8 @@ Some current features:
     * Methods and constants are defined right away based on the PHP class
     * Docblocks are treated like docstrings, so `help` works and is informative
     * The original inheritance structure is copied
-    * Properties are inspected on the fly
+    * Default properties become Python properties with documentation
+    * Other properties are accessed on the fly as a fallback for attribute access
   * Creating and using objects
   * Getting and setting constants
   * Getting and setting global variables

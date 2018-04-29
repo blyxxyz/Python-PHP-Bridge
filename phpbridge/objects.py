@@ -37,9 +37,6 @@ class PHPClass(type):
 
 class PHPObject(metaclass=PHPClass):
     """The base class of all instantiatable PHP classes."""
-    _bridge = None              # type: PHPBridge
-    _hash = None                # type: str
-
     def __new__(cls, *args, from_hash: Optional[str] = None):
         """Either create or represent a PHP object.
 
@@ -55,7 +52,6 @@ class PHPObject(metaclass=PHPClass):
             assert not args
             if from_hash not in cls._bridge._objects:
                 obj = super().__new__(cls)
-                object.__setattr__(obj, '_bridge', cls._bridge)
                 object.__setattr__(obj, '_hash', from_hash)
                 cls._bridge._objects[obj._hash] = obj
             return cls._bridge._objects[from_hash]
@@ -100,7 +96,7 @@ class PHPObject(metaclass=PHPClass):
 
     def __dir__(self) -> List[str]:
         return super().__dir__() + self._bridge.send_command(
-            'listProperties', self._bridge.encode(self))
+            'listNonDefaultProperties', self._bridge.encode(self))
 
 
 def make_method(bridge, classname, name, info):
@@ -128,6 +124,27 @@ def make_method(bridge, classname, name, info):
     return method
 
 
+def create_property(name: str, doc: str) -> property:
+    def getter(self):
+        return self._bridge.send_command(
+            'getProperty', {'obj': self._bridge.encode(self), 'name': name})
+
+    def setter(self, value):
+        return self._bridge.send_command(
+            'setProperty',
+            {'obj': self._bridge.encode(self),
+             'name': name,
+             'value': self._bridge.encode(value)})
+
+    def deleter(self):
+        return self._bridge.send_command(
+            'unsetProperty', {'obj': self._bridge.encode(self), 'name': name})
+
+    getter.__doc__ = doc
+
+    return property(getter, setter, deleter)
+
+
 def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     """Create and register a PHPClass.
 
@@ -141,6 +158,7 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     methods = info['methods']           # type: Dict[str, Dict[str, Any]]
     interfaces = info['interfaces']     # type: List[str]
     consts = info['consts']             # type: Dict[str, Any]
+    properties = info['properties']     # type: Dict[str, Dict[str, Any]]
     doc = info['doc']                   # type: str
     parent = info['parent']             # type: str
     is_abstract = info['isAbstract']    # type: bool
@@ -160,12 +178,20 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
         for name, value in consts.items():
             bindings[name] = value
 
+    if properties:
+        for name, property_info in properties.items():
+            if name in bindings:
+                warn("'{}' on class '{}' has multiple meanings".format(
+                    name, classname))
+            property_doc = utils.convert_docblock(property_info['doc'])
+            bindings[name] = create_property(name, property_doc)
+
     if methods:
         for name, method_info in methods.items():
-            method = make_method(bridge, classname, name, method_info)
             if name in bindings:
-                warn("const {} on class {} will be shadowed by the method "
-                     "with the same name".format(name, classname))
+                warn("'{}' on class '{}' has multiple meanings".format(
+                    name, classname))
+            method = make_method(bridge, classname, name, method_info)
             bindings[name] = method
             created_methods[name] = method
 

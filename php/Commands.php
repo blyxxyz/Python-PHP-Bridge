@@ -227,8 +227,21 @@ class Commands
      */
     public static function setProperty($obj, $name, $value)
     {
-        /** @noinspection PhpVariableVariableInspection */
         $obj->$name = $value;
+        return null;
+    }
+
+    /**
+     * Unset an object property.
+     *
+     * @param object $obj
+     * @param string $name
+     *
+     * @return null
+     */
+    public static function unsetProperty($obj, string $name)
+    {
+        unset($obj->$name);
         return null;
     }
 
@@ -243,11 +256,11 @@ class Commands
      *
      * @return array
      */
-    public static function listProperties($obj)
+    public static function listNonDefaultProperties($obj)
     {
         $properties = [];
         foreach ((new \ReflectionObject($obj))->getProperties() as $property) {
-            if ($property->isPublic()) {
+            if ($property->isPublic() && !$property->isDefault()) {
                 $properties[] = $property->getName();
             }
         }
@@ -273,16 +286,19 @@ class Commands
             'doc' => $reflectionClass->getDocComment(),
             'consts' => [],
             'methods' => [],
+            'properties' => [],
             'interfaces' => $reflectionClass->getInterfaceNames(),
             'isAbstract' => $reflectionClass->isAbstract(),
             'isInterface' => $reflectionClass->isInterface(),
             'parent' => $parent
         ];
+
         foreach ($reflectionClass->getReflectionConstants() as $constant) {
             if ($constant->isPublic()) {
                 $info['consts'][$constant->getName()] = $constant->getValue();
             }
         }
+
         foreach ($reflectionClass->getMethods() as $method) {
             if ($method->isPublic()) {
                 $info['methods'][$method->getName()] = [
@@ -296,6 +312,19 @@ class Commands
                 ];
             }
         }
+
+        $defaults = $reflectionClass->getDefaultProperties();
+        foreach ($reflectionClass->getProperties() as $property) {
+            if ($property->isPublic()) {
+                $name = $property->getName();
+                $info['properties'][$name] = [
+                    'default' => array_key_exists($name, $defaults)
+                        ? $defaults[$name] : null,
+                    'doc' => $property->getDocComment()
+                ];
+            }
+        }
+
         return $info;
     }
 
