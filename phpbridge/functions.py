@@ -15,7 +15,14 @@ def parse_type_info(bridge: 'PHPBridge', info: Dict[str, Any]) -> Any:
     from phpbridge import objects
 
     if info['isClass']:
-        annotation = objects.get_class(bridge, info['name'])  # type: Any
+        try:
+            annotation = objects.get_class(bridge, info['name'])  # type: Any
+        except Exception:
+            # This probably means the type annotation is invalid.
+            # PHP just lets that happen, because the annotation might start
+            # existing in the future. So we'll allow it too. But we can't get
+            # the class, so use the name of the class instead.
+            annotation = info['name']
     else:
         annotation = utils.php_types.get(info['name'], info['name'])
     if info['nullable']:
@@ -25,7 +32,7 @@ def parse_type_info(bridge: 'PHPBridge', info: Dict[str, Any]) -> Any:
 
 
 def different_name(name: str) -> Iterator[str]:
-    """Look for new names that don't conflict with existing names"""
+    """Look for new names that don't conflict with existing names."""
     yield name
     for n in itertools.count(2):
         yield name + str(n)
@@ -83,7 +90,8 @@ def create_function(bridge: 'PHPBridge', name: str) -> None:
         return
 
     def func(*args, **kwargs) -> Any:
-        args = utils.parse_args(func.__signature__, args, kwargs)
+        args = utils.parse_args(
+            func.__signature__, args, kwargs)  # type: ignore
         return bridge.send_command(
             'callFun',
             {'name': name,

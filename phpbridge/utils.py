@@ -1,5 +1,5 @@
 from inspect import Parameter, Signature
-from typing import Any, Dict, List, Mapping, Sequence
+from typing import Any, Dict, Tuple
 
 php_types = {
     'int': int,
@@ -9,7 +9,10 @@ php_types = {
     'array': dict,
     'float': float,
     'double': float,
-    'string': str
+    'string': str,
+    'void': None,
+    'NULL': None,
+    'null': None
 }
 
 
@@ -25,18 +28,18 @@ def convert_docblock(doc):
     return '\n'.join(lines)
 
 
-def parse_args(signature: Signature, args: Sequence[Any],
-               kwargs: Dict[str, Any]) -> List[Any]:
+def parse_args(signature: Signature, orig_args: Tuple,
+               orig_kwargs: Dict[str, Any]) -> Tuple:
     """Use a function signature to interpret keyword arguments.
 
     If no keyword arguments are provided, args is always returned unchanged.
     This ensures that it's possible to call a function even if the signature
     is inaccurate.
     """
-    if not kwargs:
-        return args
-    args = list(args)
-    kwargs = dict(kwargs)
+    if not orig_kwargs:
+        return orig_args
+    args = list(orig_args)
+    kwargs = dict(orig_kwargs)
     parameters = list(signature.parameters.values())
     while kwargs:
         index = len(args)
@@ -52,4 +55,4 @@ def parse_args(signature: Signature, args: Sequence[Any],
             if default == Parameter.empty:
                 raise TypeError("Missing required argument '{}'".format(name))
             args.append(default)
-    return args
+    return tuple(args)
