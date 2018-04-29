@@ -119,7 +119,7 @@ def make_method(bridge, classname, name, info):
 
     if info['static']:
         # mypy doesn't know classmethods are callable
-        method = classmethod(method)  # type: ignore
+        return classmethod(method)  # type: ignore
 
     return method
 
