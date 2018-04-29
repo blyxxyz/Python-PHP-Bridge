@@ -31,6 +31,17 @@ You can create and use objects:
 True
 ```
 
+You can use keyword arguments, even though PHP doesn't support them:
+```
+>>> date.setDate(year=1900, day=20, month=10)
+<DateTime Object
+(
+    [date] => 1900-10-20 14:26:19.146087
+    [timezone_type] => 3
+    [timezone] => Europe/Berlin
+)>
+```
+
 You can loop over iterators and traversables:
 ```
 >>> for path, file in php.RecursiveIteratorIterator(php.RecursiveDirectoryIterator('.git/logs')):
@@ -101,7 +112,9 @@ get_resource_type() expects parameter 1 to be resource, integer given
 ```
 
 Some current features:
-  * Calling and inspecting PHP functions
+  * Using PHP functions
+    * Keyword arguments are supported and translated based on the signature
+    * Docblocks are also converted, so `help` is informative
   * Using PHP classes like Python classes
     * Methods and constants are defined right away based on the PHP class
     * Docblocks are treated like docstrings, so `help` works and is informative

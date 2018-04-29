@@ -82,7 +82,8 @@ def create_function(bridge: 'PHPBridge', name: str) -> None:
         bridge._functions[name] = bridge._functions[info['name']]
         return
 
-    def func(*args) -> Any:
+    def func(*args, **kwargs) -> Any:
+        args = utils.parse_args(func.__signature__, args, kwargs)
         return bridge.send_command(
             'callFun',
             {'name': name,

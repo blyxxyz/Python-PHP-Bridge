@@ -105,7 +105,8 @@ class PHPObject(metaclass=PHPClass):
 
 def make_method(bridge, classname, name, info):
 
-    def method(self: PHPObject, *args) -> Any:
+    def method(*args, **kwargs) -> Any:
+        self, *args = utils.parse_args(method.__signature__, args, kwargs)
         return bridge.send_command(
             'callMethod',
             {'obj': bridge.encode(self),

@@ -23,7 +23,7 @@ abstract class CommandServer
     }
 
     /**
-     * Receive a command from the other side of the bridge
+     * Receive a command from the other side of the bridge.
      *
      * Waits for a command. If one is received, returns it. If the other side
      * is closed, return false.
@@ -34,7 +34,7 @@ abstract class CommandServer
     abstract protected function receive(): array;
 
     /**
-     * Send a response to the other side of the bridge
+     * Send a response to the other side of the bridge.
      *
      * @param array $data
      *
@@ -43,7 +43,7 @@ abstract class CommandServer
     abstract protected function send(array $data);
 
     /**
-     * Encode a value into something JSON-serializable
+     * Encode a value into something JSON-serializable.
      *
      * @param mixed $data
      *
@@ -93,7 +93,7 @@ abstract class CommandServer
     }
 
     /**
-     * Convert deserialized data into the value it represents, inverts encode
+     * Convert deserialized data into the value it represents, inverts encode.
      *
      * @param array{type: string, value: mixed} $data
      *
@@ -127,7 +127,7 @@ abstract class CommandServer
     }
 
     /**
-     * Decode an array of values
+     * Decode an array of values.
      *
      * @param array<array> $dataItems
      *
@@ -139,7 +139,7 @@ abstract class CommandServer
     }
 
     /**
-     * Continually listen for commands
+     * Continually listen for commands.
      *
      * @return void
      */
@@ -162,7 +162,7 @@ abstract class CommandServer
     }
 
     /**
-     * Execute a command and return the (unencoded) result
+     * Execute a command and return the (unencoded) result.
      *
      * @param string $command The name of the command
      * @param mixed $data The parameters of the commands
