@@ -7,7 +7,7 @@ import types
 
 from typing import Any, Callable, IO, List, Dict  # noqa: F401
 
-from phpbridge import functions, objects
+from phpbridge import functions, namespaces, objects
 
 php_server_path = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), 'server.php')
@@ -122,10 +122,12 @@ class PHPBridge:
         return self.decode(self.receive())
 
     def __dir__(self) -> List[str]:
-        return (dir(self.cls) + dir(self.const) + dir(self.fun) +
-                dir(self.globals))
+        return [entry.replace('\\', '.') for entry in
+                dir(self.cls) + dir(self.const) + dir(self.fun) +
+                dir(self.globals)]
 
     def __getattr__(self, attr: str) -> Any:
+        attr = attr.replace('.', '\\')
         kind, content = self.send_command('resolveName', attr)
         if kind == 'func':
             return functions.get_function(self, content)
@@ -134,11 +136,15 @@ class PHPBridge:
         elif kind == 'const' or kind == 'global':
             return content
         elif kind == 'none':
-            raise AttributeError(
-                "No function, class, constant or global variable '{}' "
-                "exists".format(attr))
+            return namespaces.Namespace(self, attr)
         else:
             raise RuntimeError("Resolved unknown data type {}".format(kind))
+
+    def __getitem__(self, item: str) -> Any:
+        try:
+            return self.__getattr__(item)
+        except AttributeError as e:
+            raise IndexError(*e.args)
 
     @classmethod
     def start_process(cls, fname: str = php_server_path):

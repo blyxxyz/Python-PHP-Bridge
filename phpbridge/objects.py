@@ -31,7 +31,7 @@ class PHPClass(type):
         if self._is_interface:
             return "<PHP interface '{}'>".format(self.__qualname__)
         elif self._is_abstract:
-            return "<abstract PHP class '{}'>".format(self.__qualname__)
+            return "<PHP abstract class '{}'>".format(self.__qualname__)
         return "<PHP class '{}'>".format(self.__qualname__)
 
 

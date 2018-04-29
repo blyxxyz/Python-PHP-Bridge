@@ -1,4 +1,4 @@
-This is a Python module for running PHP code. It makes PHP functions, classes, objects, constants and variables available to be used just like regular Python versions.
+This is a Python module for running PHP programs. It makes PHP functions, classes, objects, constants and variables available to be used just like regular Python versions.
 
 You can call functions:
 ```
@@ -65,10 +65,7 @@ echo(arg1, *rest)
     @param mixed ...$rest
 
     @return void
->>> NonFunctionProxy = php.cls[r'blyxxyz\PythonServer\NonFunctionProxy']
->>> NonFunctionProxy
-<PHP class 'blyxxyz\PythonServer\NonFunctionProxy'>
->>> help(NonFunctionProxy)
+>>> help(php.blyxxyz.PythonServer.NonFunctionProxy)
 Help on class blyxxyz\PythonServer\NonFunctionProxy:
 
 class blyxxyz\PythonServer\NonFunctionProxy(phpbridge.objects.PHPObject)
@@ -125,25 +122,21 @@ Some current features:
   * Getting and setting constants
   * Getting and setting global variables
   * Translating exceptions so they can be treated as both Python exceptions and PHP objects
+  * Walking through namespaces like modules
   * Tab completion in the interpreter
 
 Caveats:
   * The connection between PHP and Python is somewhat fragile, if PHP prints something to stderr, it's lost
   * Returned PHP objects are never garbage collected
   * You can only pass basic Python objects into PHP
+  * Names that can't be found are assumed to be namespaces
+  * The intuitive namespace access doesn't work if (part of) the namespace is the name of an existing constant, function or class
 
 In PHP, different kinds of things may use the same name. If there's a constant `foo` and a function `foo`, use `php.fun.foo()` rather than `php.foo()` so the bridge doesn't have to guess. There's
   * `php.cls` for classes
   * `php.const` for constants
   * `php.fun` for functions
   * `php.globals` for globals
-
-This way of accessing PHP constructs also supports indexing, which is currently needed to use namespaces. For example, to use the `\Foo\Bar` class:
-```
->>> php.cls[r'\Foo\Bar']
-<PHP class 'Foo\Bar'>
-```
-(the string is prefixed with an `r` so the backslashes don't need to be escaped)
 
 They also support setting constants and global variables:
 ```
