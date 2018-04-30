@@ -65,7 +65,7 @@ echo(arg1, *rest)
     @param mixed ...$rest
 
     @return void
->>> help(php.blyxxyz.PythonServer.NonFunctionProxy)
+>>> help(php._.blyxxyz.PythonServer._.NonFunctionProxy)
 Help on class blyxxyz\PythonServer\NonFunctionProxy:
 
 class blyxxyz\PythonServer\NonFunctionProxy(phpbridge.objects.PHPObject)
@@ -129,8 +129,8 @@ Caveats:
   * The connection between PHP and Python is somewhat fragile, if PHP prints something to stderr, it's lost
   * Returned PHP objects are never garbage collected
   * You can only pass basic Python objects into PHP
-  * Names that can't be found are assumed to be namespaces
-  * The intuitive namespace access doesn't work if (part of) the namespace is the name of an existing constant, function or class
+
+Namespaces can be accessed by using a leading and trailing underscore on the namespace. For example, the class `PhpParser\Node\Name` becomes `php._.PHPParser.Node._.Name`. This avoids conflict with the class named `PhpParser\Node`, which can be accessed as `php._.PHPParser._.Node`.
 
 In PHP, different kinds of things may use the same name. If there's a constant `foo` and a function `foo`, use `php.fun.foo()` rather than `php.foo()` so the bridge doesn't have to guess. There's
   * `php.cls` for classes

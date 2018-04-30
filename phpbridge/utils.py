@@ -1,3 +1,5 @@
+"""Stand-alone utility functions."""
+
 from inspect import Parameter, Signature
 from typing import Any, Dict, Tuple
 

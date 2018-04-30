@@ -24,6 +24,7 @@ class PHPBridge:
         self._classes = {}      # type: Dict[str, objects.PHPClass]
         self._objects = {}      # type: Dict[str, objects.PHPObject]
         self._functions = {}    # type: Dict[str, Callable]
+        self._ = namespaces.NamespaceBuilder(self, '')
 
     def forward_stderr(self) -> None:
         for line in self.output:
@@ -122,7 +123,7 @@ class PHPBridge:
         return self.decode(self.receive())
 
     def __dir__(self) -> List[str]:
-        return [entry.replace('\\', '.') for entry in
+        return [namespaces.convert_notation(entry) for entry in
                 dir(self.cls) + dir(self.const) + dir(self.fun) +
                 dir(self.globals)]
 
@@ -136,7 +137,7 @@ class PHPBridge:
         elif kind == 'const' or kind == 'global':
             return content
         elif kind == 'none':
-            return namespaces.Namespace(self, attr)
+            raise AttributeError("No construct named '{}' found".format(attr))
         else:
             raise RuntimeError("Resolved unknown data type {}".format(kind))
 
