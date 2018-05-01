@@ -14,4 +14,4 @@ flake8:
 	python3 -m flake8 phpbridge
 
 mypy:
-	python3 -m mypy phpbridge
+	python3 -m mypy --strict-optional phpbridge

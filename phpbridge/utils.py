@@ -3,20 +3,6 @@
 from inspect import Parameter, Signature
 from typing import Any, Dict, Tuple
 
-php_types = {
-    'int': int,
-    'integer': int,
-    'bool': bool,
-    'boolean': bool,
-    'array': dict,
-    'float': float,
-    'double': float,
-    'string': str,
-    'void': None,
-    'NULL': None,
-    'null': None
-}
-
 
 def convert_docblock(doc):
     """Strip the comment syntax out of a docblock."""

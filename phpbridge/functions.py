@@ -24,7 +24,7 @@ def parse_type_info(bridge: 'PHPBridge', info: Dict[str, Any]) -> Any:
             # the class, so use the name of the class instead.
             annotation = info['name']
     else:
-        annotation = utils.php_types.get(info['name'], info['name'])
+        annotation = objects.php_types.get(info['name'], info['name'])
     if info['nullable']:
         annotation = Optional[annotation]
 
@@ -53,6 +53,7 @@ def make_signature(bridge: 'PHPBridge', info: Dict[str, Any],
         used_names.add(add_first)
 
     for param in info['params']:
+
         for param_name in different_name(param['name']):
             if param_name not in used_names:
                 used_names.add(param_name)

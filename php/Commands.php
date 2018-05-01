@@ -206,7 +206,7 @@ class Commands
      */
     public static function getProperty($obj, string $name)
     {
-        if (isset($obj->$name)) {
+        if (property_exists($obj, $name)) {
             return $obj->$name;
         } else {
             $class = get_class($obj);

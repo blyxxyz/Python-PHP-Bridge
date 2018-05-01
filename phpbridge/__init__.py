@@ -25,14 +25,19 @@ class PHPBridge:
         self._objects = {}      # type: Dict[str, objects.PHPObject]
         self._functions = {}    # type: Dict[str, Callable]
         self._ = namespaces.NamespaceBuilder(self, '')
+        self._debug = False
 
     def send(self, command: str, data: Any) -> None:
+        if self._debug:
+            print(command, data)
         json.dump({'cmd': command, 'data': data}, self.input)
         self.input.write('\n')
         self.input.flush()
 
     def receive(self) -> dict:
         line = self.output.readline()
+        if self._debug:
+            print(line)
         return json.loads(line)
 
     def encode(self, data: Any) -> dict:
@@ -62,7 +67,7 @@ class PHPBridge:
 
         if isinstance(data, objects.PHPObject) and data._bridge is self:
             return {'type': 'object',
-                    'value': {'class': data.__class__.__name__,
+                    'value': {'class': data.__class__._name,  # type: ignore
                               'hash': data._hash}}
 
         if isinstance(data, objects.PHPResource) and data._bridge is self:
@@ -70,11 +75,13 @@ class PHPBridge:
                     'value': {'type': data._type,
                               'hash': data._hash}}
 
-        if ((isinstance(data, types.FunctionType) and
-                getattr(data, '_bridge', None) is self) or
-                isinstance(data, objects.PHPClass) and data._bridge is self):
+        if isinstance(data, objects.PHPClass) and data._bridge is self:
             # PHP uses strings to represent functions and classes
             # This unfortunately means they will be strings if they come back
+            return {'type': 'string', 'value': data._name}
+
+        if (isinstance(data, types.FunctionType) and
+                getattr(data, '_bridge', None) is self):
             return {'type': 'string', 'value': data.__name__}
 
         raise RuntimeError("Can't encode {!r}".format(data))

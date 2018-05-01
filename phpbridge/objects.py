@@ -1,7 +1,8 @@
 """Translation of PHP classes and objects to Python."""
 
 from itertools import product
-from typing import Any, Callable, Dict, List, Optional, Type  # noqa: F401
+from typing import (Any, Callable, Dict, List, Optional, Type,  # noqa: F401
+                    Union)
 from warnings import warn
 
 from phpbridge.functions import make_signature
@@ -15,6 +16,7 @@ if MYPY:
 class PHPClass(type):
     """The metaclass of all PHP classes and interfaces."""
     _bridge = None              # type: PHPBridge
+    _name = None                # type: str
     _is_abstract = False        # type: bool
     _is_interface = False       # type: bool
 
@@ -57,7 +59,7 @@ class PHPObject(metaclass=PHPClass):
             return cls._bridge._objects[from_hash]
         return cls._bridge.send_command(
             'createObject',
-            {'name': cls.__name__,
+            {'name': cls._name,
              'args': [cls._bridge.encode(arg) for arg in args]})
 
     def __repr__(self) -> str:
@@ -68,18 +70,6 @@ class PHPObject(metaclass=PHPClass):
         return "<{}>".format(
             self._bridge.send_command(
                 'repr', self._bridge.encode(self)).rstrip())
-
-    def __str__(self) -> str:
-        try:
-            return self._bridge.send_command('str', self._bridge.encode(self))
-        except Exception:
-            return repr(self)
-
-    def __call__(self, *args) -> Any:
-        return self._bridge.send_command(
-            'callObj',
-            {'obj': self._bridge.encode(self),
-             'args': [self._bridge.encode(arg) for arg in args]})
 
     def __getattr__(self, attr: str) -> Any:
         return self._bridge.send_command(
@@ -99,7 +89,7 @@ class PHPObject(metaclass=PHPClass):
             'listNonDefaultProperties', self._bridge.encode(self))
 
 
-def make_method(bridge, classname, name, info):
+def make_method(bridge: 'PHPBridge', classname: str, name: str, info: dict):
 
     def method(*args, **kwargs) -> Any:
         self, *args = utils.parse_args(
@@ -159,7 +149,7 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     interfaces = info['interfaces']     # type: List[str]
     consts = info['consts']             # type: Dict[str, Any]
     properties = info['properties']     # type: Dict[str, Dict[str, Any]]
-    doc = info['doc']                   # type: str
+    doc = info['doc']                   # type: Optional[str]
     parent = info['parent']             # type: str
     is_abstract = info['isAbstract']    # type: bool
     is_interface = info['isInterface']  # type: bool
@@ -172,14 +162,21 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     if not methods:
         methods = {}
 
-    # "\ArrayObject" resolves to the same class as "ArrayObject", so we want
-    # them to be the same Python objects as well
+    # "\Foo" resolves to the same class as "Foo", so we want them to be the
+    # same Python objects as well
     if classname in bridge._classes:
         bridge._classes[unresolved_classname] = bridge._classes[classname]
         return
 
+    bases = [PHPObject]         # type: List[Type]
+
+    if parent is not False:
+        bases.append(get_class(bridge, parent))
+
+    for interface in interfaces:
+        bases.append(get_class(bridge, interface))
+
     bindings = {}               # type: Dict[str, Any]
-    created_methods = {}        # type: Dict[str, Callable]
 
     for name, value in consts.items():
         bindings[name] = value
@@ -191,6 +188,9 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
         property_doc = utils.convert_docblock(property_info['doc'])
         bindings[name] = create_property(name, property_doc)
 
+    created_methods = {}        # type: Dict[str, Callable]
+
+    from phpbridge.classes import magic_aliases
     for name, method_info in methods.items():
         if name in bindings:
             warn("'{}' on class '{}' has multiple meanings".format(
@@ -201,13 +201,8 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
         method = make_method(bridge, classname, name, method_info)
         bindings[name] = method
         created_methods[name] = method
-
-    bases = [PHPObject]         # type: List[Type]
-    if parent is not False:
-        bases.append(get_class(bridge, parent))
-
-    for interface in interfaces:
-        bases.append(get_class(bridge, interface))
+        if name in magic_aliases:
+            bindings[magic_aliases[name]] = method
 
     # Bind the magic methods needed to make these interfaces work
     # TODO: figure out something less ugly
@@ -234,16 +229,25 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
         else:
             break
 
-    # do this one last to make sure it isn't replaced, it's essential
+    # do this last to make sure it isn't replaced
     bindings['_bridge'] = bridge
+    bindings['__doc__'] = utils.convert_docblock(doc)
+    bindings['__module__'] = '<PHP>'
+    bindings['_is_abstract'] = is_abstract
+    bindings['_is_interface'] = is_interface
 
-    cls = PHPClass(classname, tuple(bases), bindings)
-    cls._bridge = bridge
-    cls._is_abstract = is_abstract
-    cls._is_interface = is_interface
+    # PHP does something really nasty when you make an anonymous class.
+    # Each class needs to have a unique name, so it makes a name that goes
+    # class@anonymous<null byte><place of definition><hex memory address>
+    # The null byte is probably to trick naively written C code into
+    # printing only the class@anonymous part.
+    # Unfortunately, Python doesn't like those class names, so we'll
+    # insert another character that you'll (hopefully) not find in any
+    # named class's name because the syntax doesn't allow it.
+    typename = classname.replace('\0', '$')
+    bindings['_name'] = classname
 
-    cls.__doc__ = utils.convert_docblock(doc)
-    cls.__module__ = '<PHP>'
+    cls = PHPClass(typename, tuple(bases), bindings)
 
     bridge._classes[unresolved_classname] = cls
     bridge._classes[classname] = cls
@@ -283,3 +287,24 @@ class PHPResource:
     def __repr__(self):
         """Mimics print_r output for resources, but more informative."""
         return "<PHP {} resource id #{}>".format(self._type, self._hash)
+
+
+php_types = {
+    'int': int,
+    'integer': int,
+    'bool': bool,
+    'boolean': bool,
+    'array': dict,
+    'float': float,
+    'double': float,
+    'string': str,
+    'void': None,
+    'NULL': None,
+    'null': None,
+    'callable': Callable,
+    'true': True,
+    'false': False,
+    'mixed': Any,
+    'object': PHPObject,
+    'resource': PHPResource
+}

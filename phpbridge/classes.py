@@ -12,6 +12,11 @@ from phpbridge.objects import PHPObject
 
 predef_classes = {}             # type: Dict[str, Type]
 
+magic_aliases = {
+    '__toString': '__str__',
+    '__invoke': '__call__'
+}                               # type: Dict[str, str]
+
 
 def predef(_cls: Optional[Type] = None, *, name: Optional[str] = None):
     """A decorator to add a class to the dictionary of pre-defined classes."""
@@ -45,7 +50,7 @@ class Iterator(PHPObject):
 
     See also: collections.abc.Iterator.
     """
-    def __next__(self) -> Any:
+    def __next__(self):
         status, key, value = self._bridge.send_command(
             'nextIteration', self._bridge.encode(self))
         if not status:
@@ -71,26 +76,26 @@ class ArrayAccess(PHPObject):
     Note that the "in" operator only ever checks for valid keys when it comes
     to this class. It's less general than the usual possibilities.
     """
-    def __contains__(self, item: Any) -> bool:
+    def __contains__(self, item) -> bool:
         return self._bridge.send_command(
             'hasItem',
             {'obj': self._bridge.encode(self),
              'offset': self._bridge.encode(item)})
 
-    def __getitem__(self, item: Any) -> Any:
+    def __getitem__(self, item):
         return self._bridge.send_command(
             'getItem',
             {'obj': self._bridge.encode(self),
              'offset': self._bridge.encode(item)})
 
-    def __setitem__(self, item: Any, value: Any) -> None:
+    def __setitem__(self, item, value) -> None:
         self._bridge.send_command(
             'setItem',
             {'obj': self._bridge.encode(self),
              'offset': self._bridge.encode(item),
              'value': self._bridge.encode(value)})
 
-    def __delitem__(self, item: Any) -> None:
+    def __delitem__(self, item) -> None:
         self._bridge.send_command(
             'delItem',
             {'obj': self._bridge.encode(self),
@@ -106,6 +111,17 @@ class Throwable(PHPObject, Exception):
     """
     def __init__(self, *args, from_hash: Optional[str] = None) -> None:
         super(Exception, self).__init__(self.getMessage())
+
+
+# Closure is somehow hardwired to be callable, without __invoke
+# TODO: It would be nice to generate a signature for this
+@predef
+class Closure(PHPObject):
+    def __call__(self, *args):
+        return self._bridge.send_command(
+            'callObj',
+            {'obj': self._bridge.encode(self),
+             'args': [self._bridge.encode(arg) for arg in args]})
 
 
 @predef(name='ArithmeticError')
