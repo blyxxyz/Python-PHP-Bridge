@@ -84,6 +84,10 @@ class PHPBridge:
                 getattr(data, '_bridge', None) is self):
             return {'type': 'string', 'value': data.__name__}
 
+        if (isinstance(data, types.MethodType) and
+                getattr(data.__self__, '_bridge', None) is self):
+            return self.encode([data.__self__, data.__name__])
+
         raise RuntimeError("Can't encode {!r}".format(data))
 
     def decode(self, data: dict) -> Any:
