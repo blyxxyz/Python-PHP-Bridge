@@ -308,7 +308,8 @@ class Commands
                         [static::class, 'paramInfo'],
                         $method->getParameters()
                     ),
-                    'returnType' => static::typeInfo($method->getReturnType())
+                    'returnType' => static::typeInfo($method->getReturnType()),
+                    'owner' => $method->getDeclaringClass()->getName()
                 ];
             }
         }

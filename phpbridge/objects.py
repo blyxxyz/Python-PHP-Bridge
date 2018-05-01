@@ -164,6 +164,14 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     is_abstract = info['isAbstract']    # type: bool
     is_interface = info['isInterface']  # type: bool
 
+    # PHP turns empty associative arrays into empty lists, so
+    if not properties:
+        properties = {}
+    if not consts:
+        consts = {}
+    if not methods:
+        methods = {}
+
     # "\ArrayObject" resolves to the same class as "ArrayObject", so we want
     # them to be the same Python objects as well
     if classname in bridge._classes:
@@ -173,27 +181,26 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     bindings = {}               # type: Dict[str, Any]
     created_methods = {}        # type: Dict[str, Callable]
 
-    if consts:
-        # if it's empty it's a list, because of PHP
-        for name, value in consts.items():
-            bindings[name] = value
+    for name, value in consts.items():
+        bindings[name] = value
 
-    if properties:
-        for name, property_info in properties.items():
-            if name in bindings:
-                warn("'{}' on class '{}' has multiple meanings".format(
-                    name, classname))
-            property_doc = utils.convert_docblock(property_info['doc'])
-            bindings[name] = create_property(name, property_doc)
+    for name, property_info in properties.items():
+        if name in bindings:
+            warn("'{}' on class '{}' has multiple meanings".format(
+                name, classname))
+        property_doc = utils.convert_docblock(property_info['doc'])
+        bindings[name] = create_property(name, property_doc)
 
-    if methods:
-        for name, method_info in methods.items():
-            if name in bindings:
-                warn("'{}' on class '{}' has multiple meanings".format(
-                    name, classname))
-            method = make_method(bridge, classname, name, method_info)
-            bindings[name] = method
-            created_methods[name] = method
+    for name, method_info in methods.items():
+        if name in bindings:
+            warn("'{}' on class '{}' has multiple meanings".format(
+                name, classname))
+        if method_info['owner'] != classname:
+            # Make inheritance visible
+            continue
+        method = make_method(bridge, classname, name, method_info)
+        bindings[name] = method
+        created_methods[name] = method
 
     bases = [PHPObject]         # type: List[Type]
     if parent is not False:
@@ -244,8 +251,8 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     # Only now do we attach signatures, because the signatures may contain the
     # class we just registered
     if methods:
-        for name, method_info in methods.items():
-            func = created_methods[name]
+        for name, func in created_methods.items():
+            method_info = methods[name]
             if method_info['static']:
                 # classmethod
                 func = func.__func__  # type: ignore
