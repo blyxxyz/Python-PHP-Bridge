@@ -26,27 +26,14 @@ class PHPBridge:
         self._functions = {}    # type: Dict[str, Callable]
         self._ = namespaces.NamespaceBuilder(self, '')
 
-    def forward_stderr(self) -> None:
-        for line in self.output:
-            sys.stderr.write(line)
-        raise RuntimeError("Can't communicate with PHP")
-
     def send(self, command: str, data: Any) -> None:
-        try:
-            json.dump({'cmd': command, 'data': data}, self.input)
-            self.input.write('\n')
-            self.input.flush()
-        except BrokenPipeError:
-            self.forward_stderr()
+        json.dump({'cmd': command, 'data': data}, self.input)
+        self.input.write('\n')
+        self.input.flush()
 
     def receive(self) -> dict:
         line = self.output.readline()
-        try:
-            return json.loads(line)
-        except json.decoder.JSONDecodeError:
-            sys.stderr.write(line)
-            self.forward_stderr()
-            return None
+        return json.loads(line)
 
     def encode(self, data: Any) -> dict:
         if isinstance(data, str):
@@ -231,6 +218,12 @@ class ClassGetter(Getter):
 
 
 def start_process_unix(fname: str) -> PHPBridge:
+    """Start a server.php bridge using two pipes.
+
+    pass_fds is not supported on Windows. It may be that some other way to
+    inherit file descriptors exists on Windows. In that case, the Windows
+    function should be adjusted, or merged with this one.
+    """
     php_in, py_in = os.pipe()
     py_out, php_out = os.pipe()
     sp.Popen(['php', fname, 'php://fd/{}'.format(php_in),
@@ -240,12 +233,15 @@ def start_process_unix(fname: str) -> PHPBridge:
 
 
 def start_process_windows(fname: str) -> PHPBridge:
+    """Start a server.php bridge over stdin and stderr."""
     proc = sp.Popen(['php', fname, 'php://stdin', 'php://stderr'],
-                    stdin=sp.PIPE, stderr=sp.PIPE)
+                    stdin=sp.PIPE, stderr=sp.PIPE,
+                    universal_newlines=True)
     return PHPBridge(proc.stdin, proc.stderr)
 
 
 def start_process(fname: str = php_server_path) -> PHPBridge:
+    """Start server.php and open a bridge to it."""
     if sys.platform.startswith('win32'):
         return start_process_windows(fname)
     return start_process_unix(fname)

@@ -32,7 +32,11 @@ spl_autoload_register(function ($class) {
 });
 
 $server = new \blyxxyz\PythonServer\StdioCommandServer($argv[1], $argv[2]);
-$server::promoteWarnings();
+if ($argv[2] === 'php://stderr') {
+    // Promoting warnings is a good idea, but unless we're using stderr, it's
+    // outside the scope of this package to do it automatically
+    $server::promoteWarnings();
+}
 try {
     $server->communicate();
 } catch (\blyxxyz\PythonServer\Exceptions\ConnectionLostException $exception) {
