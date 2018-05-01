@@ -1,39 +1,36 @@
 <?php
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace blyxxyz\PythonServer;
+
+use blyxxyz\PythonServer\Exceptions\ConnectionLostException;
 
 /**
  * A command bridge that uses standard file input and output to communicate.
  *
- * By default, stdin and stderr are used. This is easy to manage because it
- * only uses basic Unix facilities, but it interferes with other use of those
- * streams. In particular, any warning or error that's printed will disrupt
- * the communication. It may be more robust to use named pipes instead.
+ * $in and $out will be treated as file paths. PHP's special mock file paths,
+ * like php://stdin and php://fd/{file descriptor}, may be used too.
  */
 class StdioCommandServer extends CommandServer
 {
-    /** @var resource  */
+    /** @var resource */
     private $in;
 
     /** @var resource */
     private $out;
 
-    public function __construct(
-        string $in = "php://stdin",
-        string $out = "php://stderr"
-    ) {
+    public function __construct(string $in, string $out)
+    {
         parent::__construct();
         $this->in = fopen($in, 'r');
         $this->out = fopen($out, 'w');
-        static::promoteWarnings();
     }
 
     public function receive(): array
     {
         $line = fgets($this->in);
         if ($line === false) {
-            throw new \RuntimeException("Can't read from input");
+            throw new ConnectionLostException("Can't read from input");
         }
         return json_decode($line, true);
     }
@@ -42,22 +39,22 @@ class StdioCommandServer extends CommandServer
     {
         $encoded = json_encode($data, JSON_PRESERVE_ZERO_FRACTION);
         if ($encoded === false) {
-            $encoded = json_encode([
-                'type' => 'thrownException',
-                'value' => [
-                    'type' => 'JSONEncodeError',
-                    'message' => json_last_error_msg()
-                ]
-            ]);
+            $encoded = json_encode($this->encodeThrownException(
+                new \RuntimeException(json_last_error_msg())
+            ));
         }
         fwrite($this->out, $encoded);
         fwrite($this->out, "\n");
     }
 
     /**
+     * Promote warnings to exceptions. This is vital if stderr is used for
+     * communication, because anything else written there will then disrupt
+     * the connection.
+     *
      * @return mixed
      */
-    private static function promoteWarnings()
+    public static function promoteWarnings()
     {
         return set_error_handler(function (int $errno, string $errstr): bool {
             if (error_reporting() !== 0) {

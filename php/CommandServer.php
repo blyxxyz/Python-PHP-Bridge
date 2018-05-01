@@ -31,7 +31,7 @@ abstract class CommandServer
      * @psalm-suppress MismatchingDocblockReturnType
      * @return array{cmd: string, data: mixed}|false
      */
-    abstract protected function receive(): array;
+    abstract public function receive(): array;
 
     /**
      * Send a response to the other side of the bridge.
@@ -40,7 +40,7 @@ abstract class CommandServer
      *
      * @return void
      */
-    abstract protected function send(array $data);
+    abstract public function send(array $data);
 
     /**
      * Encode a value into something JSON-serializable.
@@ -90,6 +90,22 @@ abstract class CommandServer
             $type = gettype($data);
             throw new \Exception("Can't encode value of type '$type'");
         }
+    }
+
+    /**
+     * Encode an exception that should be raised on decoding.
+     *
+     * @param \Throwable $exception
+     *
+     * @return array
+     */
+    protected function encodeThrownException(\Throwable $exception): array
+    {
+        return [
+            'type' => 'thrownException',
+            'value' => $this->encode($exception),
+            'message' => $exception->getMessage()
+        ];
     }
 
     /**
@@ -151,11 +167,7 @@ abstract class CommandServer
             try {
                 $response = $this->encode($this->execute($cmd, $data));
             } catch (\Throwable $exception) {
-                $response = [
-                    'type' => 'thrownException',
-                    'value' => $this->encode($exception),
-                    'message' => $exception->getMessage()
-                ];
+                $response = $this->encodeThrownException($exception);
             }
             $this->send($response);
         }

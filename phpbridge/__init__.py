@@ -1,6 +1,6 @@
 import json
 import math
-import os.path
+import os
 import subprocess as sp
 import sys
 import types
@@ -147,12 +147,6 @@ class PHPBridge:
         except AttributeError as e:
             raise IndexError(*e.args)
 
-    @classmethod
-    def start_process(cls, fname: str = php_server_path):
-        proc = sp.Popen(['php', fname], stdin=sp.PIPE, stderr=sp.PIPE,
-                        universal_newlines=True)
-        return cls(proc.stdin, proc.stderr)
-
 
 class Getter:
     _bridge = None              # type: PHPBridge
@@ -236,4 +230,22 @@ class ClassGetter(Getter):
         return self._bridge.send_command('listClasses')
 
 
-php = PHPBridge.start_process()
+def start_process_unix(fname: str) -> PHPBridge:
+    php_in, py_in = os.pipe()
+    py_out, php_out = os.pipe()
+    sp.Popen(['php', fname, 'php://fd/{}'.format(php_in),
+              'php://fd/{}'.format(php_out)],
+             pass_fds=[0, 1, 2, php_in, php_out])
+    return PHPBridge(os.fdopen(py_in, 'w'), os.fdopen(py_out, 'r'))
+
+
+def start_process_windows(fname: str) -> PHPBridge:
+    proc = sp.Popen(['php', fname, 'php://stdin', 'php://stderr'],
+                    stdin=sp.PIPE, stderr=sp.PIPE)
+    return PHPBridge(proc.stdin, proc.stderr)
+
+
+def start_process(fname: str = php_server_path) -> PHPBridge:
+    if sys.platform.startswith('win32'):
+        return start_process_windows(fname)
+    return start_process_unix(fname)

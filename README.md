@@ -2,7 +2,8 @@ This is a Python module for running PHP programs. It makes PHP functions, classe
 
 You can call functions:
 ```
->>> from phpbridge import php
+>>> import phpbridge
+>>> php = phpbridge.start_process()
 >>> php.array_flip(["foo", "bar"])
 {'foo': 0, 'bar': 1}
 >>> php.echo("foo\n")
@@ -126,7 +127,7 @@ Some current features:
   * Tab completion in the interpreter
 
 Caveats:
-  * The connection between PHP and Python is somewhat fragile, if PHP prints something to stderr, it's lost
+  * On Windows, stdin and stderr are used to communicate, so PHP can't read input and if it writes to stderr the connection is lost
   * Returned PHP objects are never garbage collected
   * You can only pass basic Python objects into PHP
 
