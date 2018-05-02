@@ -1,9 +1,8 @@
-This is a Python module for running PHP programs. It makes PHP functions, classes, objects, constants and variables available to be used just like regular Python versions.
+This is a Python module for running PHP programs. It lets you import PHP functions, classes, objects, constants and variables to work just like regular Python versions.
 
 You can call functions:
 ```
->>> import phpbridge
->>> php = phpbridge.start_process()
+>>> from phpbridge import php
 >>> php.array_flip(["foo", "bar"])
 {'foo': 0, 'bar': 1}
 >>> php.echo("foo\n")
@@ -66,8 +65,13 @@ echo(arg1, *rest)
     @param mixed ...$rest
 
     @return void
->>> help(php._.blyxxyz.PythonServer._.NonFunctionProxy)
-Help on class blyxxyz\PythonServer\NonFunctionProxy:
+```
+
+You can import namespaces as modules:
+```
+>>> from phpbridge.php.blyxxyz.PythonServer import NonFunctionProxy
+>>> help(NonFunctionProxy)
+Help on class blyxxyz\PythonServer\NonFunctionProxy in module phpbridge.php.blyxxyz.PythonServer:
 
 class blyxxyz\PythonServer\NonFunctionProxy(phpbridge.objects.PHPObject)
  |  Provide function-like language constructs as static methods.
@@ -83,7 +87,7 @@ class blyxxyz\PythonServer\NonFunctionProxy(phpbridge.objects.PHPObject)
  |  Class methods defined here:
  |
  |  array(val) -> dict from phpbridge.objects.PHPClass
- |      Cast a value to an array
+ |      Cast a value to an array.
  |
  |      @param mixed $val
  |
@@ -120,36 +124,16 @@ Some current features:
     * Default properties become Python properties with documentation
     * Other properties are accessed on the fly as a fallback for attribute access
   * Creating and using objects
+  * Importing namespaces as modules
   * Getting and setting constants
   * Getting and setting global variables
   * Translating exceptions so they can be treated as both Python exceptions and PHP objects
-  * Walking through namespaces like modules
   * Tab completion in the interpreter
 
 Caveats:
   * On Windows, stdin and stderr are used to communicate, so PHP can't read input and if it writes to stderr the connection is lost
   * Returned PHP objects are never garbage collected
   * You can only pass basic Python objects into PHP
-
-Namespaces can be accessed by using a leading and trailing underscore on the namespace. For example, the class `PhpParser\Node\Name` becomes `php._.PHPParser.Node._.Name`. This avoids conflict with the class named `PhpParser\Node`, which can be accessed as `php._.PHPParser._.Node`.
-
-In PHP, different kinds of things may use the same name. If there's a constant `foo` and a function `foo`, use `php.fun.foo()` rather than `php.foo()` so the bridge doesn't have to guess. There's
-  * `php.cls` for classes
-  * `php.const` for constants
-  * `php.fun` for functions
-  * `php.globals` for globals
-
-They also support setting constants and global variables:
-```
->>> php.globals.foo = 'bar'
->>> php.const['baz'] = 'foobar'
->>> php.eval("""
-... global $foo;
-... return [$foo, baz];
-... """)
-['bar', 'foobar']
-```
-
-The bridge works by piping JSON between the Python process and a PHP process.
+  * Namespaces can shadow class names. For example, `PhpParser\Node` and `PhpParser\Node\Name` both exist as classes, which means `phpbridge.php.PhpParser.Node` becomes a namespace object. To access `Node`, use `phpbridge.php.PhpParser.Node_` or `phpbridge.php[r'PhpParser\Node']`.
 
 The only dependencies are PHP 7.0+, Python 3.5+, ext-json and ext-reflection. Composer can be used to install development tools and set up autoloading, but it's not required.

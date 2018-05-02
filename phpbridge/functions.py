@@ -3,7 +3,7 @@ import itertools
 from inspect import Parameter, Signature
 from typing import Any, Callable, Dict, Iterator, Optional, Set  # noqa: F401
 
-from phpbridge import utils
+from phpbridge import modules, utils
 
 MYPY = False
 if MYPY:
@@ -16,7 +16,7 @@ def parse_type_info(bridge: 'PHPBridge', info: Dict[str, Any]) -> Any:
 
     if info['isClass']:
         try:
-            annotation = objects.get_class(bridge, info['name'])  # type: Any
+            annotation = bridge.get_class(info['name'])  # type: Any
         except Exception:
             # This probably means the type annotation is invalid.
             # PHP just lets that happen, because the annotation might start
@@ -39,7 +39,7 @@ def different_name(name: str) -> Iterator[str]:
 
 
 def make_signature(bridge: 'PHPBridge', info: Dict[str, Any],
-                   add_first: Optional[str] = None):
+                   add_first: Optional[str] = None) -> Signature:
     """Create a function signature from an info dict."""
     parameters = []
     used_names = set()          # type: Set[str]
@@ -87,11 +87,11 @@ def create_function(bridge: 'PHPBridge', name: str) -> None:
     """Create and register a PHP function."""
     info = bridge.send_command('funcInfo', name)
 
-    if info['name'] in bridge._functions:
-        bridge._functions[name] = bridge._functions[info['name']]
+    if info['name'] in bridge.functions:
+        bridge.functions[name] = bridge.functions[info['name']]
         return
 
-    def func(*args, **kwargs) -> Any:
+    def func(*args: Any, **kwargs: Any) -> Any:
         args = utils.parse_args(
             func.__signature__, args, kwargs)  # type: ignore
         return bridge.send_command(
@@ -100,19 +100,11 @@ def create_function(bridge: 'PHPBridge', name: str) -> None:
              'args': [bridge.encode(arg) for arg in args]})
 
     func.__doc__ = utils.convert_docblock(info['doc'])
-    func.__module__ = 'phpbridge.bridges'
+    func.__module__ = modules.get_module(bridge, name)
     func.__name__ = info['name']
-    func.__qualname__ = "{}.fun.{}".format(
-        bridge.__name__, func.__name__)
+    func.__qualname__ = modules.basename(info['name'])
     func.__signature__ = make_signature(bridge, info)  # type: ignore
     func._bridge = bridge                              # type: ignore
 
-    bridge._functions[name] = func
-    bridge._functions[info['name']] = func
-
-
-def get_function(bridge: 'PHPBridge', name: str) -> Callable:
-    """Get the PHP function that belongs to a certain name."""
-    if name not in bridge._functions:
-        create_function(bridge, name)
-    return bridge._functions[name]
+    bridge.functions[name] = func
+    bridge.functions[info['name']] = func

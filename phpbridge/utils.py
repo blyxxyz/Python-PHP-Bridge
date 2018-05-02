@@ -1,10 +1,10 @@
 """Stand-alone utility functions."""
 
 from inspect import Parameter, Signature
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 
-def convert_docblock(doc):
+def convert_docblock(doc: Optional[str]) -> Optional[str]:
     """Strip the comment syntax out of a docblock."""
     if not isinstance(doc, str):
         return doc

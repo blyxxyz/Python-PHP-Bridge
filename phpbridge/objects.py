@@ -6,7 +6,7 @@ from typing import (Any, Callable, Dict, List, Optional, Type,  # noqa: F401
 from warnings import warn
 
 from phpbridge.functions import make_signature
-from phpbridge import utils
+from phpbridge import modules, utils
 
 MYPY = False
 if MYPY:
@@ -20,26 +20,27 @@ class PHPClass(type):
     _is_abstract = False        # type: bool
     _is_interface = False       # type: bool
 
-    def __call__(self, *a, **kw):
+    def __call__(self, *a: Any, **kw: Any) -> Any:
         if self._is_interface:
             raise TypeError("Cannot instantiate interface {}".format(
-                self.__qualname__))
+                self.__name__))
         elif self._is_abstract:
             raise TypeError("Cannot instantiate abstract class {}".format(
-                self.__qualname__))
+                self.__name__))
         return super().__call__(*a, **kw)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self._is_interface:
-            return "<PHP interface '{}'>".format(self.__qualname__)
+            return "<PHP interface '{}'>".format(self.__name__)
         elif self._is_abstract:
-            return "<PHP abstract class '{}'>".format(self.__qualname__)
-        return "<PHP class '{}'>".format(self.__qualname__)
+            return "<PHP abstract class '{}'>".format(self.__name__)
+        return "<PHP class '{}'>".format(self.__name__)
 
 
 class PHPObject(metaclass=PHPClass):
     """The base class of all instantiatable PHP classes."""
-    def __new__(cls, *args, from_hash: Optional[str] = None):
+    def __new__(cls, *args: Any,
+                from_hash: Optional[str] = None) -> 'PHPObject':
         """Either create or represent a PHP object.
 
         Args:
@@ -52,12 +53,12 @@ class PHPObject(metaclass=PHPClass):
         """
         if from_hash is not None:
             assert not args
-            if from_hash not in cls._bridge._objects:
+            if from_hash not in cls._bridge.objects:
                 obj = super().__new__(cls)
                 object.__setattr__(obj, '_hash', from_hash)
-                cls._bridge._objects[obj._hash] = obj
-            return cls._bridge._objects[from_hash]
-        return cls._bridge.send_command(
+                cls._bridge.objects[obj._hash] = obj
+            return cls._bridge.objects[from_hash]
+        return cls._bridge.send_command(  # type: ignore
             'createObject',
             {'name': cls._name,
              'args': [cls._bridge.encode(arg) for arg in args]})
@@ -85,13 +86,14 @@ class PHPObject(metaclass=PHPClass):
              'value': self._bridge.encode(value)})
 
     def __dir__(self) -> List[str]:
-        return super().__dir__() + self._bridge.send_command(
+        return super().__dir__() + self._bridge.send_command(  # type: ignore
             'listNonDefaultProperties', self._bridge.encode(self))
 
 
-def make_method(bridge: 'PHPBridge', classname: str, name: str, info: dict):
+def make_method(bridge: 'PHPBridge', classname: str, name: str,
+                info: dict) -> Callable:
 
-    def method(*args, **kwargs) -> Any:
+    def method(*args: Any, **kwargs: Any) -> Any:
         self, *args = utils.parse_args(
             method.__signature__, args, kwargs)  # type: ignore
         return bridge.send_command(
@@ -100,10 +102,9 @@ def make_method(bridge: 'PHPBridge', classname: str, name: str, info: dict):
              'name': name,
              'args': [bridge.encode(arg) for arg in args]})
 
-    method.__module__ = 'phpbridge.bridges'
+    method.__module__ = modules.get_module(bridge, classname)
     method.__name__ = name
-    method.__qualname__ = "{}.cls.{}.{}".format(
-        bridge.__name__, classname, method.__name__)
+    method.__qualname__ = modules.basename(classname) + '.' + name
 
     if info['doc'] is not False:
         method.__doc__ = utils.convert_docblock(info['doc'])
@@ -115,20 +116,20 @@ def make_method(bridge: 'PHPBridge', classname: str, name: str, info: dict):
     return method
 
 
-def create_property(name: str, doc: str) -> property:
-    def getter(self):
+def create_property(name: str, doc: Optional[str]) -> property:
+    def getter(self: PHPObject) -> Any:
         return self._bridge.send_command(
             'getProperty', {'obj': self._bridge.encode(self), 'name': name})
 
-    def setter(self, value):
-        return self._bridge.send_command(
+    def setter(self: PHPObject, value: Any) -> None:
+        self._bridge.send_command(
             'setProperty',
             {'obj': self._bridge.encode(self),
              'name': name,
              'value': self._bridge.encode(value)})
 
-    def deleter(self):
-        return self._bridge.send_command(
+    def deleter(self: PHPObject) -> None:
+        self._bridge.send_command(
             'unsetProperty', {'obj': self._bridge.encode(self), 'name': name})
 
     getter.__doc__ = doc
@@ -165,17 +166,17 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
 
     # "\Foo" resolves to the same class as "Foo", so we want them to be the
     # same Python objects as well
-    if classname in bridge._classes:
-        bridge._classes[unresolved_classname] = bridge._classes[classname]
+    if classname in bridge.classes:
+        bridge.classes[unresolved_classname] = bridge.classes[classname]
         return
 
     bases = [PHPObject]         # type: List[Type]
 
     if parent is not False:
-        bases.append(get_class(bridge, parent))
+        bases.append(bridge.get_class(parent))
 
     for interface in interfaces:
-        bases.append(get_class(bridge, interface))
+        bases.append(bridge.get_class(interface))
 
     bindings = {}               # type: Dict[str, Any]
 
@@ -249,7 +250,7 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     # do this last to make sure it isn't replaced
     bindings['_bridge'] = bridge
     bindings['__doc__'] = utils.convert_docblock(doc)
-    bindings['__module__'] = 'phpbridge.bridges'
+    bindings['__module__'] = modules.get_module(bridge, classname)
     bindings['_is_abstract'] = is_abstract
     bindings['_is_interface'] = is_interface
 
@@ -266,10 +267,10 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
 
     cls = PHPClass(typename, tuple(bases), bindings)
 
-    cls.__qualname__ = "{}.cls.{}".format(bridge.__name__, cls.__name__)
+    cls.__qualname__ = modules.basename(cls.__name__)
 
-    bridge._classes[unresolved_classname] = cls
-    bridge._classes[classname] = cls
+    bridge.classes[unresolved_classname] = cls
+    bridge.classes[classname] = cls
 
     # Only now do we attach signatures, because the signatures may contain the
     # class we just registered
@@ -283,13 +284,6 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
             func.__signature__ = signature  # type: ignore
 
 
-def get_class(bridge: 'PHPBridge', name: str) -> PHPClass:
-    """Get the PHPClass that a name resolves to."""
-    if name not in bridge._classes:
-        create_class(bridge, name)
-    return bridge._classes[name]
-
-
 class PHPResource:
     """A representation of a remote resource value.
 
@@ -297,15 +291,15 @@ class PHPResource:
     type (represented by a string) and an identifier used for reference
     counting.
     """
-    def __init__(self, bridge, type_, hash_):
+    def __init__(self, bridge: 'PHPBridge', type_: str, id_: str) -> None:
         # Leading underscores are not necessary here but nice for consistency
         self._bridge = bridge
         self._type = type_
-        self._hash = hash_
+        self._id = id_
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Mimics print_r output for resources, but more informative."""
-        return "<PHP {} resource id #{}>".format(self._type, self._hash)
+        return "<PHP {} resource id #{}>".format(self._type, self._id)
 
 
 php_types = {

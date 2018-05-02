@@ -74,7 +74,7 @@ def parse_type(bridge: 'phpbridge.PHPBridge',
             option = simple_types[option]
         else:
             try:
-                option = phpbridge.objects.get_class(bridge, option)
+                option = bridge.get_class(option)
             except Exception:
                 # Give up and keep it as a string
                 pass

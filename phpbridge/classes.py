@@ -6,7 +6,9 @@ bases are copied to the corresponding PHPClasses. This helps keep the class
 hierarchy clean, because each class must be bound to a bridge.
 """
 
-from typing import Any, Dict, Optional, Type  # noqa: F401
+import typing
+
+from typing import Any, Callable, Dict, Optional, Type, Union  # noqa: F401
 
 from phpbridge.objects import PHPObject
 
@@ -18,10 +20,11 @@ magic_aliases = {
 }                               # type: Dict[str, str]
 
 
-def predef(_cls: Optional[Type] = None, *, name: Optional[str] = None):
+def predef(_cls: Optional[Type] = None, *,
+           name: Optional[str] = None) -> Union[Callable[[Type], Type], Type]:
     """A decorator to add a class to the dictionary of pre-defined classes."""
 
-    def decorator(cls: Type):
+    def decorator(cls: Type) -> Type:
         nonlocal name
         if name is None:
             name = cls.__name__
@@ -41,7 +44,8 @@ class Countable(PHPObject):
     See also: collections.abc.Sized.
     """
     def __len__(self) -> int:
-        return self._bridge.send_command('count', self._bridge.encode(self))
+        return self._bridge.send_command(  # type: ignore
+            'count', self._bridge.encode(self))
 
 
 @predef
@@ -50,7 +54,7 @@ class Iterator(PHPObject):
 
     See also: collections.abc.Iterator.
     """
-    def __next__(self):
+    def __next__(self) -> Any:
         status, key, value = self._bridge.send_command(
             'nextIteration', self._bridge.encode(self))
         if not status:
@@ -64,8 +68,8 @@ class Traversable(PHPObject):
 
     See also: collections.abc.Iterable.
     """
-    def __iter__(self) -> Iterator:
-        return self._bridge.send_command(
+    def __iter__(self) -> typing.Iterator:
+        return self._bridge.send_command(  # type: ignore
             'startIteration', self._bridge.encode(self))
 
 
@@ -76,26 +80,26 @@ class ArrayAccess(PHPObject):
     Note that the "in" operator only ever checks for valid keys when it comes
     to this class. It's less general than the usual possibilities.
     """
-    def __contains__(self, item) -> bool:
-        return self._bridge.send_command(
+    def __contains__(self, item: Any) -> bool:
+        return self._bridge.send_command(  # type: ignore
             'hasItem',
             {'obj': self._bridge.encode(self),
              'offset': self._bridge.encode(item)})
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Any) -> Any:
         return self._bridge.send_command(
             'getItem',
             {'obj': self._bridge.encode(self),
              'offset': self._bridge.encode(item)})
 
-    def __setitem__(self, item, value) -> None:
+    def __setitem__(self, item: Any, value: Any) -> None:
         self._bridge.send_command(
             'setItem',
             {'obj': self._bridge.encode(self),
              'offset': self._bridge.encode(item),
              'value': self._bridge.encode(value)})
 
-    def __delitem__(self, item) -> None:
+    def __delitem__(self, item: Any) -> None:
         self._bridge.send_command(
             'delItem',
             {'obj': self._bridge.encode(self),
@@ -109,7 +113,7 @@ class Throwable(PHPObject, Exception):
     Both a valid Exception and a valid PHPObject, so can be raised and
     caught.
     """
-    def __init__(self, *args, from_hash: Optional[str] = None) -> None:
+    def __init__(self, *args: Any, from_hash: Optional[str] = None) -> None:
         super(Exception, self).__init__(self.getMessage())
 
 
@@ -117,7 +121,7 @@ class Throwable(PHPObject, Exception):
 # TODO: It would be nice to generate a signature for this
 @predef
 class Closure(PHPObject):
-    def __call__(self, *args):
+    def __call__(self, *args: Any) -> Any:
         return self._bridge.send_command(
             'callObj',
             {'obj': self._bridge.encode(self),

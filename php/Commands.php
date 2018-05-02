@@ -440,6 +440,52 @@ class Commands
     }
 
     /**
+     * List all resolvable names.
+     *
+     * @param string $namespace
+     *
+     * @return \Generator
+     */
+    public static function listEverything(string $namespace = ''): \Generator
+    {
+        $prefix = $namespace === '' ? '' : "$namespace\\";
+        $names = array_merge(
+            static::listConsts(),
+            static::listFuns(),
+            static::listClasses(),
+            static::listGlobals()
+        );
+        if ($prefix === '') {
+            yield from $names;
+            return;
+        }
+        foreach ($names as $name) {
+            if (substr($name, 0, strlen($prefix)) === $prefix) {
+                yield substr($name, strlen($prefix));
+            }
+        }
+    }
+
+    /**
+     * List all known (sub)namespaces.
+     *
+     * @param string $namespace
+     *
+     * @return array
+     */
+    public static function listNamespaces(string $namespace = ''): array
+    {
+        // We'll use this as a set by only using the keys
+        $namespaces = [];
+        foreach (static::listEverything($namespace) as $name) {
+            if (strpos($name, '\\') !== false) {
+                $namespaces[explode('\\', $name)[0]] = null;
+            }
+        }
+        return array_keys($namespaces);
+    }
+
+    /**
      * Try to guess what a name represents.
      *
      * @param string $name

@@ -1,4 +1,3 @@
-import itertools
 import json
 import math
 import os
@@ -8,29 +7,21 @@ import types
 
 from typing import Any, Callable, IO, List, Dict  # noqa: F401
 
-from phpbridge import bridges, functions, namespaces, objects
+from phpbridge import functions, modules, objects
 
 php_server_path = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), 'server.php')
 
-serials = itertools.count(1)
-
 
 class PHPBridge:
-    def __init__(self, input_: IO[str], output: IO[str]) -> None:
+    def __init__(self, input_: IO[str], output: IO[str], name: str) -> None:
         self.input = input_
         self.output = output
-        self.cls = ClassGetter(self)
-        self.const = ConstantGetter(self)
-        self.fun = FunctionGetter(self)
-        self.globals = GlobalGetter(self)
-        self._classes = {}      # type: Dict[str, objects.PHPClass]
-        self._objects = {}      # type: Dict[str, objects.PHPObject]
-        self._functions = {}    # type: Dict[str, Callable]
-        self._ = namespaces.NamespaceBuilder(self, '')
+        self.classes = {}      # type: Dict[str, objects.PHPClass]
+        self.objects = {}      # type: Dict[str, objects.PHPObject]
+        self.functions = {}     # type: Dict[str, Callable]
         self._debug = False
-        self.__name__ = "php{}".format(next(serials))
-        setattr(bridges, self.__name__, self)
+        self.__name__ = name
 
     def send(self, command: str, data: Any) -> None:
         if self._debug:
@@ -43,7 +34,9 @@ class PHPBridge:
         line = self.output.readline()
         if self._debug:
             print(line)
-        return json.loads(line)
+        result = json.loads(line)
+        assert isinstance(result, dict)
+        return result
 
     def encode(self, data: Any) -> dict:
         if isinstance(data, str):
@@ -78,7 +71,7 @@ class PHPBridge:
         if isinstance(data, objects.PHPResource) and data._bridge is self:
             return {'type': 'resource',
                     'value': {'type': data._type,
-                              'hash': data._hash}}
+                              'hash': data._id}}
 
         if isinstance(data, objects.PHPClass) and data._bridge is self:
             # PHP uses strings to represent functions and classes
@@ -113,7 +106,7 @@ class PHPBridge:
                 return {key: self.decode(value)
                         for key, value in value.items()}
         elif type_ == 'object':
-            cls = objects.get_class(self, value['class'])
+            cls = self.get_class(value['class'])
             return cls(from_hash=value['hash'])
         elif type_ == 'resource':
             return objects.PHPResource(self, value['type'], value['hash'])
@@ -125,115 +118,33 @@ class PHPBridge:
         self.send(cmd, data)
         return self.decode(self.receive())
 
-    def __dir__(self) -> List[str]:
-        return [namespaces.convert_notation(entry) for entry in
-                dir(self.cls) + dir(self.const) + dir(self.fun) +
-                dir(self.globals)]
-
-    def __getattr__(self, attr: str) -> Any:
-        attr = attr.replace('.', '\\')
-        kind, content = self.send_command('resolveName', attr)
+    def resolve(self, path: str, name: str) -> Any:
+        if path:
+            name = path + '\\' + name
+        kind, content = self.send_command('resolveName', name)
         if kind == 'func':
-            return functions.get_function(self, content)
+            return self.get_function(content)
         elif kind == 'class':
-            return objects.get_class(self, content)
+            return self.get_class(content)
         elif kind == 'const' or kind == 'global':
             return content
         elif kind == 'none':
-            raise AttributeError("No construct named '{}' found".format(attr))
+            raise AttributeError("No construct named '{}' found".format(name))
         else:
             raise RuntimeError("Resolved unknown data type {}".format(kind))
 
-    def __getitem__(self, item: str) -> Any:
-        try:
-            return self.__getattr__(item)
-        except AttributeError as e:
-            raise IndexError(*e.args)
+    def get_class(self, name: str) -> objects.PHPClass:
+        if name not in self.classes:
+            objects.create_class(self, name)
+        return self.classes[name]
+
+    def get_function(self, name: str) -> Callable:
+        if name not in self.functions:
+            functions.create_function(self, name)
+        return self.functions[name]
 
 
-class Getter:
-    _bridge = None              # type: PHPBridge
-
-    def __init__(self, bridge: PHPBridge) -> None:
-        object.__setattr__(self, '_bridge', bridge)
-
-    def __getattr__(self, attr: str) -> Any:
-        raise NotImplementedError
-
-    def __setattr__(self, attr: str, value: Any) -> None:
-        raise NotImplementedError
-
-    def __getitem__(self, item: str) -> Any:
-        try:
-            return self.__getattr__(item)
-        except AttributeError as e:
-            raise IndexError(*e.args)
-
-    def __setitem__(self, item: str, value: Any) -> None:
-        try:
-            self.__setattr__(item, value)
-        except AttributeError as e:
-            raise IndexError(*e.args)
-
-
-class ConstantGetter(Getter):
-    def __getattr__(self, attr: str) -> Any:
-        try:
-            return self._bridge.send_command('getConst', attr)
-        except Exception:
-            raise AttributeError("Constant '{}' does not exist".format(attr))
-
-    def __setattr__(self, attr: str, value: Any) -> None:
-        try:
-            return self._bridge.send_command(
-                'setConst',
-                {'name': attr,
-                 'value': self._bridge.encode(value)})
-        except Exception as e:
-            raise AttributeError(*e.args)
-
-    def __dir__(self) -> List[str]:
-        return self._bridge.send_command('listConsts')
-
-
-class GlobalGetter(Getter):
-    def __getattr__(self, attr: str) -> Any:
-        try:
-            return self._bridge.send_command('getGlobal', attr)
-        except Exception:
-            raise AttributeError(
-                "Global variable '{}' does not exist".format(attr))
-
-    def __setattr__(self, attr: str, value: Any) -> None:
-        try:
-            return self._bridge.send_command(
-                'setGlobal',
-                {'name': attr,
-                 'value': self._bridge.encode(value)})
-        except Exception as e:
-            raise AttributeError(*e.args)
-
-    def __dir__(self) -> List[str]:
-        return self._bridge.send_command('listGlobals')
-
-
-class FunctionGetter(Getter):
-    def __getattr__(self, attr: str) -> Callable:
-        return functions.get_function(self._bridge, attr)
-
-    def __dir__(self) -> List[str]:
-        return self._bridge.send_command('listFuns')
-
-
-class ClassGetter(Getter):
-    def __getattr__(self, attr: str) -> objects.PHPClass:
-        return objects.get_class(self._bridge, attr)
-
-    def __dir__(self) -> List[str]:
-        return self._bridge.send_command('listClasses')
-
-
-def start_process_unix(fname: str) -> PHPBridge:
+def start_process_unix(fname: str, name: str) -> PHPBridge:
     """Start a server.php bridge using two pipes.
 
     pass_fds is not supported on Windows. It may be that some other way to
@@ -245,19 +156,23 @@ def start_process_unix(fname: str) -> PHPBridge:
     sp.Popen(['php', fname, 'php://fd/{}'.format(php_in),
               'php://fd/{}'.format(php_out)],
              pass_fds=[0, 1, 2, php_in, php_out])
-    return PHPBridge(os.fdopen(py_in, 'w'), os.fdopen(py_out, 'r'))
+    return PHPBridge(os.fdopen(py_in, 'w'), os.fdopen(py_out, 'r'), name)
 
 
-def start_process_windows(fname: str) -> PHPBridge:
+def start_process_windows(fname: str, name: str) -> PHPBridge:
     """Start a server.php bridge over stdin and stderr."""
     proc = sp.Popen(['php', fname, 'php://stdin', 'php://stderr'],
                     stdin=sp.PIPE, stderr=sp.PIPE,
                     universal_newlines=True)
-    return PHPBridge(proc.stdin, proc.stderr)
+    return PHPBridge(proc.stdin, proc.stderr, name)
 
 
-def start_process(fname: str = php_server_path) -> PHPBridge:
+def start_process(fname: str = php_server_path,
+                  name: str = 'php') -> PHPBridge:
     """Start server.php and open a bridge to it."""
     if sys.platform.startswith('win32'):
-        return start_process_windows(fname)
-    return start_process_unix(fname)
+        return start_process_windows(fname, name)
+    return start_process_unix(fname, name)
+
+
+modules.NamespaceFinder(start_process, 'php').register()

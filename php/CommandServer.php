@@ -270,6 +270,10 @@ abstract class CommandServer
                 return Commands::listFuns();
             case 'listClasses':
                 return Commands::listClasses();
+            case 'listEverything':
+                return iterator_to_array(Commands::listEverything($data));
+            case 'listNamespaces':
+                return Commands::listNamespaces($data);
             case 'resolveName':
                 return Commands::resolveName($data);
             case 'repr':
