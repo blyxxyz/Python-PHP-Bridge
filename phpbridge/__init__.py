@@ -1,3 +1,4 @@
+import itertools
 import json
 import math
 import os
@@ -7,10 +8,12 @@ import types
 
 from typing import Any, Callable, IO, List, Dict  # noqa: F401
 
-from phpbridge import functions, namespaces, objects
+from phpbridge import bridges, functions, namespaces, objects
 
 php_server_path = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), 'server.php')
+
+serials = itertools.count(1)
 
 
 class PHPBridge:
@@ -26,6 +29,8 @@ class PHPBridge:
         self._functions = {}    # type: Dict[str, Callable]
         self._ = namespaces.NamespaceBuilder(self, '')
         self._debug = False
+        self.__name__ = "php{}".format(next(serials))
+        setattr(bridges, self.__name__, self)
 
     def send(self, command: str, data: Any) -> None:
         if self._debug:

@@ -100,9 +100,10 @@ def make_method(bridge: 'PHPBridge', classname: str, name: str, info: dict):
              'name': name,
              'args': [bridge.encode(arg) for arg in args]})
 
-    method.__module__ = '<PHP>'
+    method.__module__ = 'phpbridge.bridges'
     method.__name__ = name
-    method.__qualname__ = '<PHP>.{}.{}'.format(classname, name)
+    method.__qualname__ = "{}.cls.{}.{}".format(
+        bridge.__name__, classname, method.__name__)
 
     if info['doc'] is not False:
         method.__doc__ = utils.convert_docblock(info['doc'])
@@ -198,7 +199,23 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
         if method_info['owner'] != classname:
             # Make inheritance visible
             continue
+
         method = make_method(bridge, classname, name, method_info)
+
+        if (isinstance(method.__doc__, str) and
+                '@inheritdoc' in method.__doc__.lower()):
+            # If @inheritdoc is used, we manually look for inheritance.
+            # If method.__doc__ is empty we leave it empty, and pydoc and
+            # inspect know where to look.
+            for base in bases:
+                try:
+                    base_doc = getattr(base, name).__doc__
+                    if isinstance(base_doc, str):
+                        method.__doc__ = base_doc
+                        break
+                except AttributeError:
+                    pass
+
         bindings[name] = method
         created_methods[name] = method
         if name in magic_aliases:
@@ -232,7 +249,7 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     # do this last to make sure it isn't replaced
     bindings['_bridge'] = bridge
     bindings['__doc__'] = utils.convert_docblock(doc)
-    bindings['__module__'] = '<PHP>'
+    bindings['__module__'] = 'phpbridge.bridges'
     bindings['_is_abstract'] = is_abstract
     bindings['_is_interface'] = is_interface
 
@@ -248,6 +265,8 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     bindings['_name'] = classname
 
     cls = PHPClass(typename, tuple(bases), bindings)
+
+    cls.__qualname__ = "{}.cls.{}".format(bridge.__name__, cls.__name__)
 
     bridge._classes[unresolved_classname] = cls
     bridge._classes[classname] = cls

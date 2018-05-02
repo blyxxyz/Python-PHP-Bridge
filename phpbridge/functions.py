@@ -100,9 +100,10 @@ def create_function(bridge: 'PHPBridge', name: str) -> None:
              'args': [bridge.encode(arg) for arg in args]})
 
     func.__doc__ = utils.convert_docblock(info['doc'])
-    func.__module__ = '<PHP>'
+    func.__module__ = 'phpbridge.bridges'
     func.__name__ = info['name']
-    func.__qualname__ = '<PHP>.' + info['name']
+    func.__qualname__ = "{}.fun.{}".format(
+        bridge.__name__, func.__name__)
     func.__signature__ = make_signature(bridge, info)  # type: ignore
     func._bridge = bridge                              # type: ignore
 
