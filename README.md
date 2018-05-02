@@ -134,6 +134,6 @@ Caveats:
   * On Windows, stdin and stderr are used to communicate, so PHP can't read input and if it writes to stderr the connection is lost
   * Returned PHP objects are never garbage collected
   * You can only pass basic Python objects into PHP
-  * Namespaces can shadow class names. For example, `PhpParser\Node` and `PhpParser\Node\Name` both exist as classes, which means `phpbridge.php.PhpParser.Node` becomes a namespace object. To access `Node`, use `phpbridge.php.PhpParser.Node_` or `phpbridge.php[r'PhpParser\Node']`.
+  * Namespaces can shadow class names. For example, `PhpParser\Node` and `PhpParser\Node\Name` both exist as classes, which means `phpbridge.php.PhpParser.Node` becomes a namespace object. To access `Node`, use `phpbridge.php.PhpParser.Node_` or `phpbridge.php.PhpParser['Node']`.
 
 The only dependencies are PHP 7.0+, Python 3.5+, ext-json and ext-reflection. Composer can be used to install development tools and set up autoloading, but it's not required.
