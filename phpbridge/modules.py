@@ -1,4 +1,5 @@
 import importlib
+import importlib.abc
 import sys
 
 from importlib.machinery import ModuleSpec
