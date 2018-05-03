@@ -289,8 +289,10 @@ class Commands
             'methods' => [],
             'properties' => [],
             'interfaces' => $reflectionClass->getInterfaceNames(),
+            'traits' => $reflectionClass->getTraitNames(),
             'isAbstract' => $reflectionClass->isAbstract(),
             'isInterface' => $reflectionClass->isInterface(),
+            'isTrait' => $reflectionClass->isTrait(),
             'parent' => $parent
         ];
 
@@ -500,7 +502,8 @@ class Commands
         } elseif (function_exists($name) ||
             method_exists(NonFunctionProxy::class, $name)) {
             return ['func', $name];
-        } elseif (class_exists($name) || interface_exists($name)) {
+        } elseif (class_exists($name) || interface_exists($name) ||
+            trait_exists($name)) {
             return ['class', $name];
         } elseif (array_key_exists($name, $GLOBALS)) {
             return ['global', static::getGlobal($name)];

@@ -23,6 +23,6 @@ trait InferRepresentation
             $args[] = $callingClass::repr($this->$name);
         }
         $argList = implode(', ', $args);
-        return static::class . "($argList)";
+        return 'new ' . static::class . "($argList)";
     }
 }

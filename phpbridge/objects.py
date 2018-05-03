@@ -17,11 +17,15 @@ class PHPClass(type):
     """The metaclass of all PHP classes and interfaces."""
     _bridge = None              # type: PHPBridge
     _name = None                # type: str
-    _is_abstract = False        # type: bool
-    _is_interface = False       # type: bool
+    _is_abstract = False
+    _is_interface = False
+    _is_trait = False
 
     def __call__(self, *a: Any, **kw: Any) -> Any:
-        if self._is_interface:
+        if self._is_trait:
+            raise TypeError("Cannot instantiate trait {}".format(
+                self.__name__))
+        elif self._is_interface:
             raise TypeError("Cannot instantiate interface {}".format(
                 self.__name__))
         elif self._is_abstract:
@@ -30,7 +34,9 @@ class PHPClass(type):
         return super().__call__(*a, **kw)
 
     def __repr__(self) -> str:
-        if self._is_interface:
+        if self._is_trait:
+            return "<PHP trait '{}'>".format(self.__name__)
+        elif self._is_interface:
             return "<PHP interface '{}'>".format(self.__name__)
         elif self._is_abstract:
             return "<PHP abstract class '{}'>".format(self.__name__)
@@ -144,12 +150,14 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     classname = info['name']            # type: str
     methods = info['methods']           # type: Dict[str, Dict[str, Any]]
     interfaces = info['interfaces']     # type: List[str]
+    traits = info['traits']             # type: List[str]
     consts = info['consts']             # type: Dict[str, Any]
     properties = info['properties']     # type: Dict[str, Dict[str, Any]]
     doc = info['doc']                   # type: Optional[str]
     parent = info['parent']             # type: str
     is_abstract = info['isAbstract']    # type: bool
     is_interface = info['isInterface']  # type: bool
+    is_trait = info['isTrait']          # type: bool
 
     # PHP turns empty associative arrays into empty lists, so
     if not properties:
@@ -169,6 +177,9 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
 
     if parent is not False:
         bases.append(bridge.get_class(parent))
+
+    for trait in traits:
+        bases.append(bridge.get_class(trait))
 
     for interface in interfaces:
         bases.append(bridge.get_class(interface))
@@ -248,6 +259,7 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
     bindings['__module__'] = modules.get_module(bridge, classname)
     bindings['_is_abstract'] = is_abstract
     bindings['_is_interface'] = is_interface
+    bindings['_is_trait'] = is_trait
 
     # PHP does something really nasty when you make an anonymous class.
     # Each class needs to have a unique name, so it makes a name that goes

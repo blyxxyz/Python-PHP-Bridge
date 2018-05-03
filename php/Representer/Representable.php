@@ -8,8 +8,7 @@ namespace blyxxyz\PythonServer\Representer;
  *
  * A typical implementation would either return a description that's more
  * useful than Representer's property inspection, or a way to create a
- * similar object. If mimicking a constructor call, it's ok to leave out the
- * "new".
+ * similar object.
  */
 interface Representable
 {
