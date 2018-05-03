@@ -1,5 +1,7 @@
 This is a Python module for running PHP programs. It lets you import PHP functions, classes, objects, constants and variables to work just like regular Python versions.
 
+# Examples
+
 You can call functions:
 ```
 >>> from phpbridge import php
@@ -113,7 +115,7 @@ You can work with PHP's exceptions:
 get_resource_type() expects parameter 1 to be resource, integer given
 ```
 
-Some current features:
+# Features
   * Using PHP functions
     * Keyword arguments are supported and translated based on the signature
     * Docblocks are also converted, so `help` is informative
@@ -130,10 +132,44 @@ Some current features:
   * Translating exceptions so they can be treated as both Python exceptions and PHP objects
   * Tab completion in the interpreter
 
-Caveats:
+# Caveats
   * On Windows, stdin and stderr are used to communicate, so PHP can't read input and if it writes to stderr the connection is lost
   * Returned PHP objects are never garbage collected
   * You can only pass basic Python objects into PHP
-  * Namespaces can shadow class names. For example, `PhpParser\Node` and `PhpParser\Node\Name` both exist as classes, which means `phpbridge.php.PhpParser.Node` becomes a namespace object. To access `Node`, use `phpbridge.php.PhpParser.Node_` or `phpbridge.php.PhpParser['Node']`.
+  * Namespaces can shadow names in an unintuitive way
 
+# Name conflicts
+Some PHP packages use the same name both for a class and a namespace. As an example, take `nikic/PHP-Parser`.
+
+`PhpParser\Node` is a class, but `PhpParser\Node\Param` is also a class. This means `phpbridge.php.PhpParser.Node` becomes ambiguous - it could either refer to the `Node` class, or the namespace of the `Param` class.
+
+In case of such a conflict, the class is preferred over the namespace. To get `Param`, a `from` import has to be used:
+```
+>>> php.require('vendor/autoload.php')
+[...]
+>>> import phpbridge.php.PhpParser.Node as Node           # Not the namespace!
+>>> Node
+<PHP interface 'PhpParser\Node'>
+>>> from phpbridge.php.PhpParser.Node import Param        # The class we want
+>>> Param
+<PHP class 'PhpParser\Node\Param'>
+>>> import phpbridge.php.PhpParser.Node.Param as Param    # Doesn't work
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: type object 'PhpParser\Node' has no attribute 'Param'
+```
+
+If there are no conflicts, things work as expected:
+```
+>>> from phpbridge.php.blyxxyz.PythonServer import Commands
+>>> Commands
+<PHP class 'blyxxyz\PythonServer\Commands'>
+>>> import phpbridge.php.blyxxyz.PythonServer as PythonServer
+>>> PythonServer
+<PHP namespace 'blyxxyz\PythonServer'>
+>>> PythonServer.Commands
+<PHP class 'blyxxyz\PythonServer\Commands'>
+```
+
+# Installing
 The only dependencies are PHP 7.0+, Python 3.5+, ext-json and ext-reflection. Composer can be used to install development tools and set up autoloading, but it's not required.

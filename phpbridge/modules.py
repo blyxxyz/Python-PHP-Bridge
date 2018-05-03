@@ -6,7 +6,6 @@ from importlib.machinery import ModuleSpec
 from types import ModuleType
 from typing import (Any, Callable, Dict, Generator,  # noqa: F401
                     List, Optional, Union)
-from warnings import warn
 
 import phpbridge
 
@@ -24,29 +23,31 @@ class Namespace(ModuleType):
         self._bridge = bridge
         self._path = path
         self.__path__ = []      # type: List[str]
-        if name.endswith('_'):
-            warn("Importing namespace '{}'. Are you sure it ends with an "
-                 "underscore?".format(name))
 
-    def __getattr__(self, attr: str) -> Any:
-        if attr.endswith('_'):
-            attr = attr[:-1]
-        return self._bridge.resolve(self._path, attr)
+    def __getattribute__(self, attr: str) -> Any:
+        val = None
+        try:
+            val = super().__getattribute__(attr)
+            if not isinstance(val, Namespace):
+                return val
+        except AttributeError:
+            pass
+        try:
+            path = super().__getattribute__('_path')
+            return self._bridge.resolve(path, attr)
+        except AttributeError:
+            if val is not None:
+                # We did manage to get val, but it's a Namespace
+                # It's ok as a fallback
+                return val
+            raise
 
     def __dir__(self) -> Generator:
-        dir_ = super().__dir__()
-        yield from dir_
-        dir_ = set(dir_)
+        yield from super().__dir__()
         for entry in self._bridge.send_command('listEverything', self._path):
-            if '\\' in entry:
+            if '\\' not in entry:
+                yield entry
                 continue
-            if entry in dir_:
-                # Provide alias for a name that's shadowed by a namespace.
-                # This is not quite correct, but should usually work.
-                # The main risk is an accidental import with a trailing
-                # underscore.
-                entry = entry + '_'
-            yield entry
 
     @property
     def __all__(self) -> List[str]:
@@ -60,7 +61,8 @@ class Namespace(ModuleType):
 
     def __getitem__(self, index: str) -> Any:
         try:
-            return self.__getattr__(index)
+            path = super().__getattribute__('_path')
+            return self._bridge.resolve(path, index)
         except AttributeError as e:
             raise IndexError(*e.args)
 
