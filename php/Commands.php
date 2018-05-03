@@ -608,4 +608,15 @@ class Commands
         $generator->next();
         return $ret;
     }
+
+    /**
+     * Throw an exception. Used for throwing an error while receiving a command.
+     *
+     * @param string $class
+     * @param string $message
+     */
+    public static function throwException(string $class, string $message)
+    {
+        throw new $class($message);
+    }
 }

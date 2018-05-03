@@ -51,11 +51,21 @@ abstract class CommandServer
      */
     protected function encode($data): array
     {
-        if (is_int($data) || is_string($data) || is_null($data) ||
-            is_bool($data)) {
+        if (is_int($data) || is_null($data) || is_bool($data)) {
             return [
                 'type' => gettype($data),
                 'value' => $data
+            ];
+        } elseif (is_string($data)) {
+            if (mb_check_encoding($data)) {
+                return [
+                    'type' => 'string',
+                    'value' => $data
+                ];
+            }
+            return [
+                'type' => 'bytes',
+                'value' => base64_encode($data)
             ];
         } elseif (is_float($data)) {
             if (is_nan($data) || is_infinite($data)) {
@@ -139,6 +149,8 @@ abstract class CommandServer
             case 'object':
             case 'resource':
                 return $this->objectStore->decode($value['hash']);
+            case 'bytes':
+                return base64_decode($value);
             default:
                 throw new \Exception("Unknown type '$type'");
         }
@@ -288,6 +300,11 @@ abstract class CommandServer
                 return Commands::startIteration($this->decode($data));
             case 'nextIteration':
                 return Commands::nextIteration($this->decode($data));
+            case 'throwException':
+                return Commands::throwException(
+                    $data['class'],
+                    $data['message']
+                );
             default:
                 throw new \Exception("Unknown command '$command'");
         }

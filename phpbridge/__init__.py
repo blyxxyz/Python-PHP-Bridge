@@ -1,3 +1,4 @@
+import base64
 import json
 import math
 import os
@@ -40,17 +41,30 @@ class PHPBridge:
 
     def encode(self, data: Any) -> dict:
         if isinstance(data, str):
-            return {'type': 'string', 'value': data}
+            try:
+                data.encode()
+                return {'type': 'string', 'value': data}
+            except UnicodeEncodeError:
+                # string contains surrogates
+                data = data.encode(errors='surrogateescape')
+
+        if isinstance(data, bytes):
+            return {'type': 'bytes',
+                    'value': base64.b64encode(data).decode()}
+
         if isinstance(data, bool):
             return {'type': 'boolean', 'value': data}
+
         if isinstance(data, int):
             return {'type': 'integer', 'value': data}
+
         if isinstance(data, float):
             if math.isnan(data):
                 data = 'NAN'
             elif math.isinf(data):
                 data = 'INF' if data > 0 else '-INF'
             return {'type': 'double', 'value': data}
+
         if data is None:
             return {'type': 'NULL', 'value': data}
 
@@ -114,6 +128,13 @@ class PHPBridge:
             return objects.PHPResource(self, value['type'], value['hash'])
         elif type_ == 'thrownException':
             raise self.decode(value)
+        elif type_ == 'bytes':
+            # PHP's strings are just byte arrays
+            # Decoding this to a bytes object would be problematic
+            # It might be meant as a legitimate string, and some binary data
+            # could be valid unicode by accident
+            value = base64.b64decode(value)
+            return value.decode(errors='surrogateescape')
         raise RuntimeError("Unknown type {!r}".format(type_))
 
     def send_command(self, cmd: str, data: Any = None) -> Any:

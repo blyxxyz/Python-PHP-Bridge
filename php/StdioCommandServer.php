@@ -32,7 +32,17 @@ class StdioCommandServer extends CommandServer
         if ($line === false) {
             throw new ConnectionLostException("Can't read from input");
         }
-        return json_decode($line, true);
+        $result = json_decode($line, true);
+        if (!is_array($result)) {
+            return [
+                'cmd' => 'throwException',
+                'data' => [
+                    'class' => \RuntimeException::class,
+                    'message' => "Error decoding JSON: " . json_last_error_msg()
+                ]
+            ];
+        }
+        return $result;
     }
 
     public function send(array $data)
