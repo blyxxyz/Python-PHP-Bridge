@@ -49,7 +49,7 @@ class PHPBridge:
             if math.isnan(data):
                 data = 'NAN'
             elif math.isinf(data):
-                data = 'INF'
+                data = 'INF' if data > 0 else '-INF'
             return {'type': 'double', 'value': data}
         if data is None:
             return {'type': 'NULL', 'value': data}
@@ -96,6 +96,8 @@ class PHPBridge:
         elif type_ == 'double':
             if value == 'INF':
                 return math.inf
+            elif value == '-INF':
+                return -math.inf
             elif value == 'NAN':
                 return math.nan
             return value

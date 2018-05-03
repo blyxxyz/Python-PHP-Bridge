@@ -130,6 +130,8 @@ abstract class CommandServer
                     return NAN;
                 } elseif ($value === 'INF') {
                     return INF;
+                } elseif ($value === '-INF') {
+                    return -INF;
                 }
                 return $value;
             case 'array':
