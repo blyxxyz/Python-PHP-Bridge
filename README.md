@@ -19,12 +19,7 @@ You can create and use objects:
 <PHP class 'DateTime'>
 >>> date = php.DateTime()
 >>> print(date)
-<DateTime Object
-(
-    [date] => 2018-04-27 17:01:45.099376
-    [timezone_type] => 3
-    [timezone] => Europe/Berlin
-)>
+<DateTime object (date='2018-05-03 22:59:15.114277', timezone_type=3, timezone='Europe/Berlin')>
 >>> date.getOffset()
 7200
 >>> php.ArrayAccess
@@ -36,12 +31,7 @@ True
 You can use keyword arguments, even though PHP doesn't support them:
 ```
 >>> date.setDate(year=1900, day=20, month=10)
-<DateTime Object
-(
-    [date] => 1900-10-20 14:26:19.146087
-    [timezone_type] => 3
-    [timezone] => Europe/Berlin
-)>
+<DateTime object (date='1900-10-20 22:59:15.114277', timezone_type=3, timezone='Europe/Berlin')>
 ```
 
 You can loop over iterators and traversables:
@@ -131,6 +121,7 @@ get_resource_type() expects parameter 1 to be resource, integer given
   * Getting and setting global variables
   * Translating exceptions so they can be treated as both Python exceptions and PHP objects
   * Tab completion in the interpreter
+  * Python-like reprs for PHP objects, with information like var_dump in a more compact form
 
 # Caveats
   * On Windows, stdin and stderr are used to communicate, so PHP can't read input and if it writes to stderr the connection is lost
