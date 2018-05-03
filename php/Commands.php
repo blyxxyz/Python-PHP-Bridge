@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace blyxxyz\PythonServer;
 
 use blyxxyz\PythonServer\Exceptions\AttributeError;
+use blyxxyz\PythonServer\Representer\Representer;
 
 /**
  * Implements the commands called through the bridge
@@ -509,37 +510,15 @@ class Commands
     }
 
     /**
-     * Get a string representation of a value, for Python's repr.
-     *
-     * var_export would be more correct than print_r, as it creates valid
-     * PHP, but it's less readable and handles recursion badly. PHP doesn't
-     * have a repr protocol.
+     * Build a string representation for Python reprs using Representer.
      *
      * @param mixed $value
      *
-     * @psalm-suppress InvalidReturnType
      * @return string
      */
     public static function repr($value): string
     {
-        if (is_resource($value)) {
-            $kind = get_resource_type($value);
-            $id = intval($value);
-            return "$kind resource id #$id";
-        }
-        /** @var string $repr */
-        $repr = print_r($value, true);
-        if (strlen($repr) > 1000) {
-            // Too much to implicitly show in a terminal
-            $cls = get_class($value);
-            $hash = spl_object_hash($value);
-            if (strlen($hash) === 32) {
-                // Get the only interesting part
-                $hash = substr($hash, 8, 8);
-            }
-            $repr = "$cls object at $hash";
-        }
-        return $repr;
+        return Representer::repr($value);
     }
 
     /**
@@ -614,9 +593,17 @@ class Commands
      *
      * @param string $class
      * @param string $message
+     * @return void
      */
     public static function throwException(string $class, string $message)
     {
-        throw new $class($message);
+        $obj = new $class($message);
+        if (!$obj instanceof \Throwable) {
+            throw new \RuntimeException(
+                "Can't throw '$class' with message '$message' - " .
+                "not throwable"
+            );
+        }
+        throw $obj;
     }
 }

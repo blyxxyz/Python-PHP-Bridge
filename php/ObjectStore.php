@@ -8,12 +8,16 @@ namespace blyxxyz\PythonServer;
  */
 class ObjectStore
 {
-    /** @var array<string|int, object|resource> */
+    /** @var array<string, object> */
     private $objects;
+
+    /** @var array<int, resource> */
+    private $resources;
 
     public function __construct()
     {
         $this->objects = [];
+        $this->resources = [];
     }
 
     /**
@@ -26,10 +30,11 @@ class ObjectStore
         if (is_resource($object)) {
             // This uses an implementation detail, but it's the best we have
             $key = intval($object);
+            $this->resources[$key] = $object;
         } else {
             $key = spl_object_hash($object);
+            $this->objects[$key] = $object;
         }
-        $this->objects[$key] = $object;
         return $key;
     }
 
@@ -40,6 +45,10 @@ class ObjectStore
      */
     public function decode($key)
     {
-        return $this->objects[$key];
+        if (is_int($key)) {
+            return $this->resources[$key];
+        } else {
+            return $this->objects[$key];
+        }
     }
 }

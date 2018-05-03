@@ -64,13 +64,8 @@ class PHPObject(metaclass=PHPClass):
              'args': [cls._bridge.encode(arg) for arg in args]})
 
     def __repr__(self) -> str:
-        """Represent a PHP object.
-
-        Wrapped in <> because it's a description, not valid Python code.
-        """
-        return "<{}>".format(
-            self._bridge.send_command(
-                'repr', self._bridge.encode(self)).rstrip())
+        return self._bridge.send_command(  # type: ignore
+            'repr', self._bridge.encode(self))
 
     def __getattr__(self, attr: str) -> Any:
         return self._bridge.send_command(

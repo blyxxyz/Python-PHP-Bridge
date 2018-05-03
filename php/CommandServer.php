@@ -301,10 +301,11 @@ abstract class CommandServer
             case 'nextIteration':
                 return Commands::nextIteration($this->decode($data));
             case 'throwException':
-                return Commands::throwException(
+                Commands::throwException(
                     $data['class'],
                     $data['message']
                 );
+                return null;
             default:
                 throw new \Exception("Unknown command '$command'");
         }
