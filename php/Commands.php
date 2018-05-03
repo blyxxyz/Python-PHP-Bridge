@@ -527,8 +527,19 @@ class Commands
             $id = intval($value);
             return "$kind resource id #$id";
         }
-        /** @psalm-suppress InvalidReturnStatement */
-        return print_r($value, true);
+        /** @var string $repr */
+        $repr = print_r($value, true);
+        if (strlen($repr) > 1000) {
+            // Too much to implicitly show in a terminal
+            $cls = get_class($value);
+            $hash = spl_object_hash($value);
+            if (strlen($hash) === 32) {
+                // Get the only interesting part
+                $hash = substr($hash, 8, 8);
+            }
+            $repr = "$cls object at $hash";
+        }
+        return $repr;
     }
 
     /**
