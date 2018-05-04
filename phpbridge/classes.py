@@ -113,7 +113,7 @@ class Throwable(PHPObject, Exception):
     Both a valid Exception and a valid PHPObject, so can be raised and
     caught.
     """
-    def __init__(self, *args: Any, from_hash: Optional[str] = None) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super(Exception, self).__init__(self.getMessage())
 
 

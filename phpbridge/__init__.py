@@ -153,7 +153,7 @@ class PHPBridge:
                         for key, value in value.items()}
         elif type_ == 'object':
             cls = self.get_class(value['class'])
-            return cls(from_hash=value['hash'])
+            return self.get_object(cls, value['hash'])
         elif type_ == 'resource':
             return objects.PHPResource(self, value['type'], value['hash'])
         elif type_ == 'bytes':
@@ -194,10 +194,22 @@ class PHPBridge:
             functions.create_function(self, name)
         return self.functions[name]
 
+    def get_object(self, cls: objects.PHPClass,
+                   hash_: str) -> objects.PHPObject:
+        obj = self._lookup(hash_)
+        if obj is not None:
+            return obj          # type: ignore
+        new_obj = super(objects.PHPObject, cls).__new__(cls)  # type: ignore
+        object.__setattr__(new_obj, '_hash', hash_)
+        self._register(hash_, new_obj)
+        return new_obj          # type: ignore
+
     def _register(self, ident: Union[int, str],
                   entity: Union[objects.PHPResource,
                                 objects.PHPObject]) -> None:
         """Register an object or resource with a weakref."""
+        if self._debug:
+            print("Registering {}".format(ident))
         self._remotes[ident] = finalize(entity, self._collect, ident)
 
     def _lookup(self, ident: Union[int, str]) -> Optional[

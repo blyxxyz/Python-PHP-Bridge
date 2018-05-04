@@ -312,7 +312,8 @@ class Commands
                         $method->getParameters()
                     ),
                     'returnType' => static::typeInfo($method->getReturnType()),
-                    'owner' => $method->getDeclaringClass()->getName()
+                    'owner' => $method->getDeclaringClass()->getName(),
+                    'isConstructor' => $method->isConstructor()
                 ];
             }
         }

@@ -83,6 +83,14 @@ def make_signature(bridge: 'PHPBridge', info: Dict[str, Any],
                      return_annotation=return_annotation)
 
 
+default_constructor_signature = Signature(
+    parameters=[Parameter(name='cls',
+                          kind=Parameter.POSITIONAL_OR_KEYWORD,
+                          default=Parameter.empty,
+                          annotation=Parameter.empty)],
+    return_annotation=Signature.empty)
+
+
 def create_function(bridge: 'PHPBridge', name: str) -> None:
     """Create and register a PHP function."""
     info = bridge.send_command('funcInfo', name)

@@ -5,7 +5,7 @@ from typing import (Any, Callable, Dict, List, Optional, Type,  # noqa: F401
                     Union)
 from warnings import warn
 
-from phpbridge.functions import make_signature
+from phpbridge.functions import make_signature, default_constructor_signature
 from phpbridge import modules, utils
 
 MYPY = False
@@ -45,31 +45,17 @@ class PHPClass(type):
 
 class PHPObject(metaclass=PHPClass):
     """The base class of all instantiatable PHP classes."""
-    def __new__(cls, *args: Any,
-                from_hash: Optional[str] = None) -> Any:
-        """Either create or represent a PHP object.
-
-        Args:
-            *args: Arguments for the PHP constructor. Must be empty if
-                   from_hash is used.
-            from_hash: If None: create a new object by sending a createObject
-                       command through the bridge. Otherwise: return the
-                       representation of an existing remote PHP object with
-                       this hash.
-        """
-        if from_hash is not None:
-            assert not args
-            obj = cls._bridge._lookup(from_hash)
-            if obj is None:
-                new_obj = super().__new__(cls)
-                object.__setattr__(new_obj, '_hash', from_hash)
-                cls._bridge._register(from_hash, new_obj)
-                return new_obj
-            return obj
+    def __new__(cls, *args: Any) -> Any:
+        """Create and return a new object."""
         return cls._bridge.send_command(
             'createObject',
             {'name': cls._name,
              'args': [cls._bridge.encode(arg) for arg in args]})
+
+    # In theory, this __new__ only shows up if no constructor has been defined,
+    # so it doesn't take arguments. In practice we don't want to enforce that,
+    # but we'll override the ugly signature.
+    __new__.__signature__ = default_constructor_signature  # type: ignore
 
     def __repr__(self) -> str:
         return self._bridge.send_command(  # type: ignore
@@ -230,6 +216,18 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
         if name in magic_aliases:
             bindings[magic_aliases[name]] = method
 
+        if method_info['isConstructor']:
+
+            def __new__(*args: Any, **kwargs: Any) -> Any:
+                cls, *args = utils.parse_args(
+                    __new__.__signature__, args, kwargs)  # type: ignore
+                return PHPObject.__new__(cls, *args)
+
+            __new__.__module__ = method.__module__
+            __new__.__qualname__ = modules.basename(classname) + '.__new__'
+            __new__.__doc__ = method.__doc__
+            bindings['__new__'] = __new__
+
     # Bind the magic methods needed to make these interfaces work
     # TODO: figure out something less ugly
     from phpbridge.classes import predef_classes
@@ -283,14 +281,17 @@ def create_class(bridge: 'PHPBridge', unresolved_classname: str) -> None:
 
     # Only now do we attach signatures, because the signatures may contain the
     # class we just registered
-    if methods:
-        for name, func in created_methods.items():
-            method_info = methods[name]
-            if method_info['static']:
-                # classmethod
-                func = func.__func__  # type: ignore
-            signature = make_signature(bridge, method_info, add_first='self')
-            func.__signature__ = signature  # type: ignore
+    for name, func in created_methods.items():
+        method_info = methods[name]
+        if method_info['static']:
+            # classmethod
+            func = func.__func__  # type: ignore
+        signature = make_signature(bridge, method_info, add_first='self')
+        func.__signature__ = signature  # type: ignore
+
+        if method_info['isConstructor']:
+            cls.__new__.__signature__ = make_signature(  # type: ignore
+                bridge, method_info, add_first='cls')
 
 
 class PHPResource:
