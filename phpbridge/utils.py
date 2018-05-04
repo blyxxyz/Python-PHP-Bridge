@@ -37,6 +37,9 @@ def parse_args(signature: Signature, orig_args: Tuple,
         cur_param = parameters[index]
         name = cur_param.name
         default = cur_param.default
+        if default is unknown_param_default:
+            raise TypeError("Missing value for argument '{}' with "
+                            "unknown default".format(name))
         if name in kwargs:
             args.append(kwargs.pop(name))
         else:
@@ -44,3 +47,12 @@ def parse_args(signature: Signature, orig_args: Tuple,
                 raise TypeError("Missing required argument '{}'".format(name))
             args.append(default)
     return tuple(args)
+
+
+class _UnknownParameterDefaultValue:
+    """Represent optional parameters without known defaults."""
+    def __repr__(self) -> str:
+        return '?'
+
+
+unknown_param_default = _UnknownParameterDefaultValue()

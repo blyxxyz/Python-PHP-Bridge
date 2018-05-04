@@ -376,7 +376,8 @@ class Commands
             'type' => static::typeInfo($parameter->getType()),
             'hasDefault' => $hasDefault,
             'default' => $hasDefault ? $parameter->getDefaultValue() : null,
-            'variadic' => $parameter->isVariadic()
+            'variadic' => $parameter->isVariadic(),
+            'isOptional' => $parameter->isOptional()
         ];
     }
 
