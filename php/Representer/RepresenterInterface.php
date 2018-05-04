@@ -10,5 +10,6 @@ namespace blyxxyz\PythonServer\Representer;
  */
 interface RepresenterInterface
 {
-    public static function repr($thing, int $depth = 2): string;
+    public static function r($thing, int $depth = 2): string;
+    public function repr($thing, int $depth = 2): string;
 }

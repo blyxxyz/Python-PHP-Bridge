@@ -4,8 +4,6 @@ declare(strict_types=1);
 namespace blyxxyz\PythonServer;
 
 use blyxxyz\PythonServer\Exceptions\ConnectionLostException;
-use blyxxyz\PythonServer\Representer\InferRepresentation;
-use blyxxyz\PythonServer\Representer\Representable;
 
 /**
  * A command bridge that uses standard file input and output to communicate.
@@ -13,10 +11,8 @@ use blyxxyz\PythonServer\Representer\Representable;
  * $in and $out will be treated as file paths. PHP's special mock file paths,
  * like php://stdin and php://fd/{file descriptor}, may be used too.
  */
-class StdioCommandServer extends CommandServer implements Representable
+class StdioCommandServer extends CommandServer
 {
-    use InferRepresentation;
-
     /** @var resource */
     private $in;
 

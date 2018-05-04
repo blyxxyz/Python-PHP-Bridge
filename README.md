@@ -19,7 +19,7 @@ You can create and use objects:
 <PHP class 'DateTime'>
 >>> date = php.DateTime()
 >>> print(date)
-<DateTime object (date='2018-05-03 22:59:15.114277', timezone_type=3, timezone='Europe/Berlin')>
+<DateTime PHP object (date='2018-05-03 22:59:15.114277', timezone_type=3, timezone='Europe/Berlin')>
 >>> date.getOffset()
 7200
 >>> php.ArrayAccess
@@ -31,7 +31,7 @@ True
 You can use keyword arguments, even though PHP doesn't support them:
 ```
 >>> date.setDate(year=1900, day=20, month=10)
-<DateTime object (date='1900-10-20 22:59:15.114277', timezone_type=3, timezone='Europe/Berlin')>
+<DateTime PHP object (date='1900-10-20 22:59:15.114277', timezone_type=3, timezone='Europe/Berlin')>
 ```
 
 You can loop over iterators and traversables:
@@ -137,7 +137,7 @@ Some PHP packages use the same name both for a class and a namespace. As an exam
 In case of such a conflict, the class is preferred over the namespace. To get `Param`, a `from` import has to be used:
 ```
 >>> php.require('vendor/autoload.php')
-[...]
+<Composer.Autoload.ClassLoader PHP object (prefixLengthsPsr4=[...: (4)], ...>
 >>> import phpbridge.php.PhpParser.Node as Node           # Not the namespace!
 >>> Node
 <PHP interface 'PhpParser\Node'>

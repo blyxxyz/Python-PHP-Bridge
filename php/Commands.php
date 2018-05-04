@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace blyxxyz\PythonServer;
 
 use blyxxyz\PythonServer\Exceptions\AttributeError;
-use blyxxyz\PythonServer\Representer\Representer;
+use blyxxyz\PythonServer\Representer\PythonRepresenter;
 
 /**
  * Implements the commands called through the bridge
@@ -521,7 +521,7 @@ class Commands
      */
     public static function repr($value): string
     {
-        return Representer::repr($value);
+        return (new PythonRepresenter)->repr($value);
     }
 
     /**

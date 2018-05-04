@@ -18,6 +18,22 @@ namespace blyxxyz\PythonServer\Representer;
 class Representer implements RepresenterInterface
 {
     /**
+     * Shorthand to get a representation without making an object manually.
+     *
+     * @param mixed $thing
+     * @param int $depth
+     * @return string
+     */
+    public static function r($thing, int $depth = 2): string
+    {
+        return (new static)->repr($thing, $depth);
+    }
+
+    const TRUE = 'true';
+    const FALSE = 'false';
+    const NULL = 'null';
+
+    /**
      * Represent any value.
      *
      * $depth can be used to specify how many levels deep the representation
@@ -27,25 +43,31 @@ class Representer implements RepresenterInterface
      * @param int $depth
      * @return string
      */
-    public static function repr($thing, int $depth = 2): string
+    public function repr($thing, int $depth = 2): string
     {
         $depth -= 1;
 
-        if ($thing instanceof Representable) {
-            return $thing->represent(static::class, $depth);
-        }
-
         switch (gettype($thing)) {
             case 'resource':
-                return static::reprResource($thing, $depth);
+                return $this->reprResource($thing, $depth);
             case 'array':
-                return static::reprArray($thing, $depth);
+                return $this->reprArray($thing, $depth);
+            case 'boolean':
+                return $thing ? static::TRUE : static::FALSE;
+            case 'NULL':
+                return static::NULL;
+            case 'double':
+                return $this->reprFloat($thing, $depth);
+            case 'string':
+                return $this->reprString($thing, $depth);
             case 'object':
-                return static::reprObject($thing, $depth);
+                return $this->reprObject($thing, $depth);
             default:
-                return static::reprFallback($thing, $depth);
+                return $this->reprFallback($thing, $depth);
         }
     }
+
+    const RESOURCE_IDEN = 'resource';
 
     /**
      * Represent a resource, including its type.
@@ -54,12 +76,17 @@ class Representer implements RepresenterInterface
      * @param int $depth
      * @return string
      */
-    protected static function reprResource($resource, int $depth): string
+    protected function reprResource($resource, int $depth): string
     {
         $kind = get_resource_type($resource);
         $id = intval($resource);
-        return "<$kind resource id #$id>";
+        return "<$kind " . static::RESOURCE_IDEN . " id #$id>";
     }
+
+    const SEQ_ARRAY_DELIMS = ['[', ']'];
+    const ASSOC_ARRAY_DELIMS = ['[', ']'];
+    const KEY_SEP = ' => ';
+    const ITEM_SEP = ', ';
 
     /**
      * Represent an array using modern syntax, up to a certain depth.
@@ -68,27 +95,45 @@ class Representer implements RepresenterInterface
      * @param int $depth
      * @return string
      */
-    protected static function reprArray(array $array, int $depth): string
+    protected function reprArray(array $array, int $depth): string
     {
         if ($array === []) {
-            return "[]";
+            return implode(static::ASSOC_ARRAY_DELIMS);
         }
+        $sequential = self::arrayIsSequential($array);
         if ($depth <= 0) {
             $count = count($array);
-            return "[... ($count)]";
+            if ($sequential) {
+                return implode(
+                    "... ($count)",
+                    static::ASSOC_ARRAY_DELIMS
+                );
+            } else {
+                return implode(
+                    "..." . static::KEY_SEP . "($count)",
+                    static::SEQ_ARRAY_DELIMS
+                );
+            }
         }
         $content = [];
         if (self::arrayIsSequential($array)) {
             foreach ($array as $item) {
-                $content[] = static::repr($item, $depth);
+                $content[] = $this->repr($item, $depth);
             }
+            return implode(
+                implode(static::ITEM_SEP, $content),
+                static::SEQ_ARRAY_DELIMS
+            );
         } else {
             foreach ($array as $key => $item) {
-                $content[] = static::repr($key, $depth) . ' => '
-                    . static::repr($item, $depth);
+                $content[] = $this->repr($key, $depth) . static::KEY_SEP
+                    . $this->repr($item, $depth);
             }
+            return implode(
+                implode(static::ITEM_SEP, $content),
+                static::ASSOC_ARRAY_DELIMS
+            );
         }
-        return '[' . implode(', ', $content) . ']';
     }
 
     /**
@@ -98,13 +143,36 @@ class Representer implements RepresenterInterface
      * @param array $array
      * @return bool
      */
-    private static function arrayIsSequential(array $array): bool
+    protected static function arrayIsSequential(array $array): bool
     {
         if (count($array) === 0) {
             return true;
         }
         return array_keys($array) === range(0, count($array) - 1);
     }
+
+    const NAN = 'NAN';
+    const INF = 'INF';
+    const NEG_INF = '-INF';
+
+    protected function reprFloat(float $thing, int $depth): string
+    {
+        if (is_nan($thing)) {
+            return static::NAN;
+        } elseif (is_infinite($thing) && $thing > 0) {
+            return static::INF;
+        } elseif (is_infinite($thing) && $thing < 0) {
+            return static::NEG_INF;
+        }
+        return $this->reprFallback($thing, $depth);
+    }
+
+    protected function reprString(string $thing, int $depth): string
+    {
+        return $this->reprFallback($thing, $depth);
+    }
+
+    const OBJECT_IDEN = 'object';
 
     /**
      * Represent an object using its properties.
@@ -113,17 +181,17 @@ class Representer implements RepresenterInterface
      * @param int $depth
      * @return string
      */
-    protected static function reprObject($object, int $depth): string
+    protected function reprObject($object, int $depth): string
     {
         if ($depth <= 0) {
-            return self::opaqueReprObject($object);
+            return $this->opaqueReprObject($object);
         }
 
-        $cls = get_class($object);
+        $cls = $this->convertClassName(get_class($object));
         $properties = (array)$object;
 
         if (count($properties) === 0) {
-            return self::opaqueReprObject($object);
+            return $this->opaqueReprObject($object);
         }
 
         $propertyReprs = [];
@@ -131,9 +199,10 @@ class Representer implements RepresenterInterface
             // private properties do something obscene with null bytes
             $keypieces = explode("\0", (string)$key);
             $key = $keypieces[count($keypieces) - 1];
-            $propertyReprs[] = "$key=" . static::repr($value, $depth);
+            $propertyReprs[] = "$key=" . $this->repr($value, $depth);
         }
-        return "<$cls object (" . implode(', ', $propertyReprs) .")>";
+        return "<$cls " . static::OBJECT_IDEN .
+            " (" . implode(', ', $propertyReprs) . ")>";
     }
 
     /**
@@ -142,15 +211,26 @@ class Representer implements RepresenterInterface
      * @param object $object
      * @return string
      */
-    protected static function opaqueReprObject($object): string
+    protected function opaqueReprObject($object): string
     {
-        $cls = get_class($object);
+        $cls = $this->convertClassName(get_class($object));
         $hash = spl_object_hash($object);
         if (strlen($hash) === 32) {
             // Get the only interesting part
             $hash = substr($hash, 8, 8);
         }
-        return "<$cls object 0x$hash>";
+        return "<$cls " . static::OBJECT_IDEN . " 0x$hash>";
+    }
+
+    /**
+     * Convert a class name to the preferred notation.
+     *
+     * @param string $name
+     * @return string
+     */
+    protected function convertClassName(string $name): string
+    {
+        return $name;
     }
 
     /**
@@ -161,7 +241,7 @@ class Representer implements RepresenterInterface
      *
      * @return string
      */
-    protected static function reprFallback($thing, int $depth): string
+    protected function reprFallback($thing, int $depth): string
     {
         if (is_null($thing) || is_bool($thing)) {
             return strtolower(var_export($thing, true));
