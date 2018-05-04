@@ -1,0 +1,20 @@
+- Avoid unnecessary encoding
+  - Convert use of send_command to bridge methods
+- Change phpbridge.classes to use inherited fake traits
+- Add a helpers submodule for things like autoloading and Symfony
+- Document more
+- Don't let bridge namespace modules conflict with other modules
+- Decode empty arrays to a dict/list amalgam
+- Publish to PyPi
+- Write tests
+- Don't use stdin and stderr on Windows, if possible
+- Make bridge more symmetric
+  - Allow sending Python proxy objects into PHP
+  - Allow Python to receive commands from PHP
+- Try to make it possible to recover from a missed message
+- Try to deal with KeyboardInterrupts simultaneously killing PHP
+- Cache resolved static names
+  - Classes and functions can be remembered once resolved
+  - consts could be cached
+  - globals should never be cached
+- Try to auto-generate mypy stubs
