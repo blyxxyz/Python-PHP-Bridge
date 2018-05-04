@@ -6,7 +6,9 @@ import subprocess as sp
 import sys
 import types
 
-from typing import Any, Callable, IO, List, Dict  # noqa: F401
+from typing import (Any, Callable, IO, List, Dict,  # noqa: F401
+                    Optional, Set, Union)
+from weakref import finalize
 
 from phpbridge import functions, modules, objects
 
@@ -18,16 +20,23 @@ class PHPBridge:
     def __init__(self, input_: IO[str], output: IO[str], name: str) -> None:
         self.input = input_
         self.output = output
-        self.classes = {}      # type: Dict[str, objects.PHPClass]
-        self.objects = {}      # type: Dict[str, objects.PHPObject]
-        self.functions = {}     # type: Dict[str, Callable]
+        self.classes = {}        # type: Dict[str, objects.PHPClass]
+        self._remotes = {}       # type: Dict[Union[int, str], finalize]
+        self._collected = set()  # type: Set[Union[int, str]]
+        self.functions = {}      # type: Dict[str, Callable]
         self._debug = False
         self.__name__ = name
 
     def send(self, command: str, data: Any) -> None:
         if self._debug:
             print(command, data)
-        json.dump({'cmd': command, 'data': data}, self.input)
+        garbage = list(self._collected.copy())
+        if self._debug and garbage:
+            print("Asking to collect {}".format(garbage))
+        json.dump({'cmd': command,
+                   'data': data,
+                   'garbage': garbage},
+                  self.input)
         self.input.write('\n')
         self.input.flush()
 
@@ -35,9 +44,30 @@ class PHPBridge:
         line = self.output.readline()
         if self._debug:
             print(line)
-        result = json.loads(line)
-        assert isinstance(result, dict)
-        return result
+        response = json.loads(line)
+        for key in response['collected']:
+            if self._debug:
+                print("Confirmed {} collected".format(key))
+            if key in self._collected:
+                self._collected.remove(key)
+            else:
+                if self._debug:
+                    print("But {} is not pending collection".format(key))
+        if response['type'] == 'exception':
+            try:
+                exception = self.decode(response['data']['value'])
+            except Exception as e:
+                raise Exception(
+                    "Failed decoding exception with message '{}'".format(
+                        response['data']['message']))
+            raise exception
+        elif response['type'] == 'result':
+            result = response['data']
+            assert isinstance(result, dict)
+            return result
+        else:
+            raise Exception("Received response with unknown type {}".format(
+                result['type']))
 
     def encode(self, data: Any) -> dict:
         if isinstance(data, str):
@@ -126,8 +156,6 @@ class PHPBridge:
             return cls(from_hash=value['hash'])
         elif type_ == 'resource':
             return objects.PHPResource(self, value['type'], value['hash'])
-        elif type_ == 'thrownException':
-            raise self.decode(value)
         elif type_ == 'bytes':
             # PHP's strings are just byte arrays
             # Decoding this to a bytes object would be problematic
@@ -165,6 +193,31 @@ class PHPBridge:
         if name not in self.functions:
             functions.create_function(self, name)
         return self.functions[name]
+
+    def _register(self, ident: Union[int, str],
+                  entity: Union[objects.PHPResource,
+                                objects.PHPObject]) -> None:
+        """Register an object or resource with a weakref."""
+        self._remotes[ident] = finalize(entity, self._collect, ident)
+
+    def _lookup(self, ident: Union[int, str]) -> Optional[
+            Union[objects.PHPResource, objects.PHPObject]]:
+        """Look up an existing object for a remote entity."""
+        try:
+            ref = self._remotes[ident]
+        except KeyError:
+            return None
+        contents = ref.peek()
+        if contents is None:
+            return None
+        return contents[0]
+
+    def _collect(self, ident: Union[int, str]) -> None:
+        """Mark an object or resource identifier as garbage collected."""
+        if self._debug:
+            print("Lost {}".format(ident))
+        self._collected.add(ident)
+        del self._remotes[ident]
 
 
 def start_process_unix(fname: str, name: str) -> PHPBridge:

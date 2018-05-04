@@ -29,7 +29,7 @@ abstract class CommandServer
      * is closed, return false.
      *
      * @psalm-suppress MismatchingDocblockReturnType
-     * @return array{cmd: string, data: mixed}|false
+     * @return array{cmd: string, data: mixed, garbage: array}|false
      */
     abstract public function receive(): array;
 
@@ -103,22 +103,6 @@ abstract class CommandServer
     }
 
     /**
-     * Encode an exception that should be raised on decoding.
-     *
-     * @param \Throwable $exception
-     *
-     * @return array
-     */
-    protected function encodeThrownException(\Throwable $exception): array
-    {
-        return [
-            'type' => 'thrownException',
-            'value' => $this->encode($exception),
-            'message' => $exception->getMessage()
-        ];
-    }
-
-    /**
      * Convert deserialized data into the value it represents, inverts encode.
      *
      * @param array{type: string, value: mixed} $data
@@ -178,13 +162,50 @@ abstract class CommandServer
         while (($command = $this->receive()) !== false) {
             $cmd = $command['cmd'];
             $data = $command['data'];
+            $garbage = $command['garbage'];
+            $collected = [];
             try {
+                foreach ($garbage as $key) {
+                    // It might have been removed before, but ObjectStore
+                    // doesn't mind
+                    $this->objectStore->remove($key);
+                    $collected[] = $key;
+                }
                 $response = $this->encode($this->execute($cmd, $data));
             } catch (\Throwable $exception) {
-                $response = $this->encodeThrownException($exception);
+                $this->send($this->encodeThrownException(
+                    $exception,
+                    $collected
+                ));
+                continue;
             }
-            $this->send($response);
+            $this->send([
+                'type' => 'result',
+                'data' => $response,
+                'collected' => $collected
+            ]);
         }
+    }
+
+    /**
+     * Encode an exception into a thrownException response.
+     *
+     * @param \Throwable $exception
+     * @param array<string|int> $collected
+     * @return array
+     */
+    protected function encodeThrownException(
+        \Throwable $exception,
+        array $collected = []
+    ): array {
+        return [
+            'type' => 'exception',
+            'data' => [
+                'value' => $this->encode($exception),
+                'message' => $exception->getMessage()
+            ],
+            'collected' => $collected
+        ];
     }
 
     /**

@@ -50,7 +50,8 @@ class StdioCommandServer extends CommandServer
         $encoded = json_encode($data, JSON_PRESERVE_ZERO_FRACTION);
         if ($encoded === false) {
             $encoded = json_encode($this->encodeThrownException(
-                new \RuntimeException(json_last_error_msg())
+                new \RuntimeException(json_last_error_msg()),
+                $data['collected']
             ));
         }
         fwrite($this->out, $encoded);

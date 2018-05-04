@@ -46,7 +46,7 @@ class PHPClass(type):
 class PHPObject(metaclass=PHPClass):
     """The base class of all instantiatable PHP classes."""
     def __new__(cls, *args: Any,
-                from_hash: Optional[str] = None) -> 'PHPObject':
+                from_hash: Optional[str] = None) -> Any:
         """Either create or represent a PHP object.
 
         Args:
@@ -59,12 +59,14 @@ class PHPObject(metaclass=PHPClass):
         """
         if from_hash is not None:
             assert not args
-            if from_hash not in cls._bridge.objects:
-                obj = super().__new__(cls)
-                object.__setattr__(obj, '_hash', from_hash)
-                cls._bridge.objects[obj._hash] = obj
-            return cls._bridge.objects[from_hash]
-        return cls._bridge.send_command(  # type: ignore
+            obj = cls._bridge._lookup(from_hash)
+            if obj is None:
+                new_obj = super().__new__(cls)
+                object.__setattr__(new_obj, '_hash', from_hash)
+                cls._bridge._register(from_hash, new_obj)
+                return new_obj
+            return obj
+        return cls._bridge.send_command(
             'createObject',
             {'name': cls._name,
              'args': [cls._bridge.encode(arg) for arg in args]})
@@ -303,6 +305,7 @@ class PHPResource:
         self._bridge = bridge
         self._type = type_
         self._id = id_
+        bridge._register(id_, self)
 
     def __repr__(self) -> str:
         """Mimics print_r output for resources, but more informative."""

@@ -64,7 +64,7 @@ class Namespace(ModuleType):
             path = super().__getattribute__('_path')
             return self._bridge.resolve(path, index)
         except AttributeError as e:
-            raise IndexError(*e.args)
+            raise KeyError(*e.args)
 
 
 class NamespaceLoader(importlib.abc.Loader):

@@ -51,4 +51,18 @@ class ObjectStore
             return $this->objects[$key];
         }
     }
+
+    /**
+     * @param string|int $key
+     *
+     * @return void
+     */
+    public function remove($key)
+    {
+        if (is_int($key)) {
+            unset($this->resources[$key]);
+        } else {
+            unset($this->objects[$key]);
+        }
+    }
 }

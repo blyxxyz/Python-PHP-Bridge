@@ -125,7 +125,6 @@ get_resource_type() expects parameter 1 to be resource, integer given
 
 # Caveats
   * On Windows, stdin and stderr are used to communicate, so PHP can't read input and if it writes to stderr the connection is lost
-  * Returned PHP objects are never garbage collected
   * You can only pass basic Python objects into PHP
   * Namespaces can shadow names in an unintuitive way
 
