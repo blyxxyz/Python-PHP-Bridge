@@ -62,7 +62,8 @@ def make_signature(bridge: 'PHPBridge', info: Dict[str, Any],
         default = (param['default'] if param['hasDefault'] else
                    Parameter.empty)
 
-        if param['isOptional'] and default is Parameter.empty:
+        if (param['isOptional'] and not param['variadic'] and
+                default is Parameter.empty):
             # Some methods have optional parameters without (visible) default
             # values. We'll use this to represent those.
             default = utils.unknown_param_default
