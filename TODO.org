@@ -1,5 +1,4 @@
-- Avoid unnecessary encoding
-  - Convert use of send_command to bridge methods
+- Convert use of send_command to bridge methods
 - Change phpbridge.classes to use inherited fake traits
 - Add a helpers submodule for things like autoloading and Symfony
 - Document more

@@ -111,7 +111,8 @@ def create_function(bridge: 'PHPBridge', name: str) -> None:
         return bridge.send_command(
             'callFun',
             {'name': name,
-             'args': [bridge.encode(arg) for arg in args]})
+             'args': [bridge.encode(arg) for arg in args]},
+            decode=True)
 
     func.__doc__ = utils.convert_docblock(info['doc'])
     func.__module__ = modules.get_module(bridge, name)

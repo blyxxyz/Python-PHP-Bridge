@@ -171,7 +171,7 @@ abstract class CommandServer
                     $this->objectStore->remove($key);
                     $collected[] = $key;
                 }
-                $response = $this->encode($this->execute($cmd, $data));
+                $response = $this->execute($cmd, $data);
             } catch (\Throwable $exception) {
                 $this->send($this->encodeThrownException(
                     $exception,
@@ -220,45 +220,45 @@ abstract class CommandServer
     {
         switch ($command) {
             case 'getConst':
-                return Commands::getConst($data);
+                return $this->encode(Commands::getConst($data));
             case 'setConst':
                 return Commands::setConst(
                     $data['name'],
                     $this->decode($data['value'])
                 );
             case 'getGlobal':
-                return Commands::getGlobal($data);
+                return $this->encode(Commands::getGlobal($data));
             case 'setGlobal':
                 return Commands::setGlobal(
                     $data['name'],
                     $this->decode($data['value'])
                 );
             case 'callFun':
-                return Commands::callFun(
+                return $this->encode(Commands::callFun(
                     $data['name'],
                     $this->decodeArray($data['args'])
-                );
+                ));
             case 'callObj':
-                return Commands::callObj(
+                return $this->encode(Commands::callObj(
                     $this->decode($data['obj']),
                     $this->decodeArray($data['args'])
-                );
+                ));
             case 'callMethod':
-                return Commands::callMethod(
+                return $this->encode(Commands::callMethod(
                     $this->decode($data['obj']),
                     $data['name'],
                     $this->decodeArray($data['args'])
-                );
+                ));
             case 'hasItem':
                 return Commands::hasItem(
                     $this->decode($data['obj']),
                     $this->decode($data['offset'])
                 );
             case 'getItem':
-                return Commands::getItem(
+                return $this->encode(Commands::getItem(
                     $this->decode($data['obj']),
                     $this->decode($data['offset'])
-                );
+                ));
             case 'setItem':
                 return Commands::setItem(
                     $this->decode($data['obj']),
@@ -271,15 +271,15 @@ abstract class CommandServer
                     $this->decode($data['offset'])
                 );
             case 'createObject':
-                return Commands::createObject(
+                return $this->encode(Commands::createObject(
                     $data['name'],
                     $this->decodeArray($data['args'])
-                );
+                ));
             case 'getProperty':
-                return Commands::getProperty(
+                return $this->encode(Commands::getProperty(
                     $this->decode($data['obj']),
                     $data['name']
-                );
+                ));
             case 'setProperty':
                 return Commands::setProperty(
                     $this->decode($data['obj']),
@@ -312,15 +312,19 @@ abstract class CommandServer
             case 'resolveName':
                 return Commands::resolveName($data);
             case 'repr':
-                return Commands::repr($this->decode($data));
+                return $this->encode(Commands::repr($this->decode($data)));
             case 'str':
-                return Commands::str($this->decode($data));
+                return $this->encode(Commands::str($this->decode($data)));
             case 'count':
                 return Commands::count($this->decode($data));
             case 'startIteration':
-                return Commands::startIteration($this->decode($data));
+                return $this->encode(Commands::startIteration(
+                    $this->decode($data)
+                ));
             case 'nextIteration':
-                return Commands::nextIteration($this->decode($data));
+                return $this->encode(Commands::nextIteration(
+                    $this->decode($data)
+                ));
             case 'throwException':
                 Commands::throwException(
                     $data['class'],

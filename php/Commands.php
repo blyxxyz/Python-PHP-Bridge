@@ -495,22 +495,22 @@ class Commands
      *
      * @param string $name
      *
-     * @return array
+     * @return string
      */
-    public static function resolveName(string $name)
+    public static function resolveName(string $name): string
     {
         if (defined($name)) {
-            return ['const', constant($name)];
+            return 'const';
         } elseif (function_exists($name) ||
             method_exists(NonFunctionProxy::class, $name)) {
-            return ['func', $name];
+            return 'func';
         } elseif (class_exists($name) || interface_exists($name) ||
             trait_exists($name)) {
-            return ['class', $name];
+            return 'class';
         } elseif (array_key_exists($name, $GLOBALS)) {
-            return ['global', static::getGlobal($name)];
+            return 'global';
         } else {
-            return ['none', null];
+            return 'none';
         }
     }
 

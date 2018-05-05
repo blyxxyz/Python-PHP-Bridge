@@ -6,6 +6,7 @@ import subprocess as sp
 import sys
 import types
 
+from collections import ChainMap
 from typing import (Any, Callable, IO, List, Dict,  # noqa: F401
                     Optional, Set, Union)
 from weakref import finalize
@@ -21,10 +22,11 @@ class PHPBridge:
         self.input = input_
         self.output = output
         self.classes = {}        # type: Dict[str, objects.PHPClass]
+        self.functions = {}      # type: Dict[str, Callable]
+        self.constants = {}      # type: Dict[str, Any]
+        self.cache = ChainMap(self.classes, self.functions, self.constants)
         self._remotes = {}       # type: Dict[Union[int, str], finalize]
         self._collected = set()  # type: Set[Union[int, str]]
-        self.functions = {}      # type: Dict[str, Callable]
-        self._cache = {}         # type: Dict[str, Any]
         self._debug = False
         self.__name__ = name
 
@@ -41,7 +43,7 @@ class PHPBridge:
         self.input.write('\n')
         self.input.flush()
 
-    def receive(self) -> dict:
+    def receive(self) -> Any:
         line = self.output.readline()
         if self._debug:
             print(line)
@@ -63,12 +65,10 @@ class PHPBridge:
                         response['data']['message']))
             raise exception
         elif response['type'] == 'result':
-            result = response['data']
-            assert isinstance(result, dict)
-            return result
+            return response['data']
         else:
             raise Exception("Received response with unknown type {}".format(
-                result['type']))
+                response['type']))
 
     def encode(self, data: Any) -> dict:
         if isinstance(data, str):
@@ -166,34 +166,35 @@ class PHPBridge:
             return value.decode(errors='surrogateescape')
         raise RuntimeError("Unknown type {!r}".format(type_))
 
-    def send_command(self, cmd: str, data: Any = None) -> Any:
+    def send_command(self, cmd: str, data: Any = None,
+                     decode: bool = False) -> Any:
         self.send(cmd, data)
-        return self.decode(self.receive())
+        result = self.receive()
+        if decode:
+            result = self.decode(result)
+        return result
 
     def resolve(self, path: str, name: str) -> Any:
         if path:
             name = path + '\\' + name
 
-        if name in self._cache:
-            return self._cache[name]
+        if name in self.cache:
+            return self.cache[name]
+        else:
+            kind = self.send_command('resolveName', name)
 
-        kind, content = self.send_command('resolveName', name)
-
-        if kind == 'func':
-            thing = self.get_function(content)
-        elif kind == 'class':
-            thing = self.get_class(content)
-        elif kind == 'const' or kind == 'global':
-            thing = content
+        if kind == 'class':
+            return self.get_class(name)
+        elif kind == 'func':
+            return self.get_function(name)
+        elif kind == 'const':
+            return self.get_const(name)
+        elif kind == 'global':
+            return self.get_global(name)
         elif kind == 'none':
             raise AttributeError("Nothing named '{}' found".format(name))
         else:
             raise RuntimeError("Resolved unknown data type {}".format(kind))
-
-        if kind != 'global':
-            self._cache[name] = thing
-
-        return thing
 
     def get_class(self, name: str) -> objects.PHPClass:
         if name not in self.classes:
@@ -204,6 +205,15 @@ class PHPBridge:
         if name not in self.functions:
             functions.create_function(self, name)
         return self.functions[name]
+
+    def get_const(self, name: str) -> Any:
+        if name not in self.constants:
+            self.constants[name] = self.send_command(
+                'getConst', name, decode=True)
+        return self.constants[name]
+
+    def get_global(self, name: str) -> Any:
+        return self.send_command('getGlobal', name, decode=True)
 
     def get_object(self, cls: objects.PHPClass,
                    hash_: str) -> objects.PHPObject:

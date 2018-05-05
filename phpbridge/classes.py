@@ -56,7 +56,7 @@ class Iterator(PHPObject):
     """
     def __next__(self) -> Any:
         status, key, value = self._bridge.send_command(
-            'nextIteration', self._bridge.encode(self))
+            'nextIteration', self._bridge.encode(self), decode=True)
         if not status:
             raise StopIteration
         return key, value
@@ -70,7 +70,7 @@ class Traversable(PHPObject):
     """
     def __iter__(self) -> typing.Iterator:
         return self._bridge.send_command(  # type: ignore
-            'startIteration', self._bridge.encode(self))
+            'startIteration', self._bridge.encode(self), decode=True)
 
 
 @predef
@@ -90,7 +90,8 @@ class ArrayAccess(PHPObject):
         return self._bridge.send_command(
             'getItem',
             {'obj': self._bridge.encode(self),
-             'offset': self._bridge.encode(item)})
+             'offset': self._bridge.encode(item)},
+            decode=True)
 
     def __setitem__(self, item: Any, value: Any) -> None:
         self._bridge.send_command(
@@ -125,7 +126,8 @@ class Closure(PHPObject):
         return self._bridge.send_command(
             'callObj',
             {'obj': self._bridge.encode(self),
-             'args': [self._bridge.encode(arg) for arg in args]})
+             'args': [self._bridge.encode(arg) for arg in args]},
+            decode=True)
 
 
 @predef(name='ArithmeticError')

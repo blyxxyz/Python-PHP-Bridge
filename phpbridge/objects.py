@@ -50,7 +50,8 @@ class PHPObject(metaclass=PHPClass):
         return cls._bridge.send_command(
             'createObject',
             {'name': cls._name,
-             'args': [cls._bridge.encode(arg) for arg in args]})
+             'args': [cls._bridge.encode(arg) for arg in args]},
+            decode=True)
 
     # In theory, this __new__ only shows up if no constructor has been defined,
     # so it doesn't take arguments. In practice we don't want to enforce that,
@@ -59,13 +60,14 @@ class PHPObject(metaclass=PHPClass):
 
     def __repr__(self) -> str:
         return self._bridge.send_command(  # type: ignore
-            'repr', self._bridge.encode(self))
+            'repr', self._bridge.encode(self), decode=True)
 
     def __getattr__(self, attr: str) -> Any:
         return self._bridge.send_command(
             'getProperty',
             {'obj': self._bridge.encode(self),
-             'name': attr})
+             'name': attr},
+            decode=True)
 
     def __setattr__(self, attr: str, value: Any) -> None:
         self._bridge.send_command(
@@ -89,7 +91,8 @@ def make_method(bridge: 'PHPBridge', classname: str, name: str,
             'callMethod',
             {'obj': bridge.encode(self),
              'name': name,
-             'args': [bridge.encode(arg) for arg in args]})
+             'args': [bridge.encode(arg) for arg in args]},
+            decode=True)
 
     method.__module__ = modules.get_module(bridge, classname)
     method.__name__ = name
@@ -108,7 +111,9 @@ def make_method(bridge: 'PHPBridge', classname: str, name: str,
 def create_property(name: str, doc: Optional[str]) -> property:
     def getter(self: PHPObject) -> Any:
         return self._bridge.send_command(
-            'getProperty', {'obj': self._bridge.encode(self), 'name': name})
+            'getProperty',
+            {'obj': self._bridge.encode(self), 'name': name},
+            decode=True)
 
     def setter(self: PHPObject, value: Any) -> None:
         self._bridge.send_command(
