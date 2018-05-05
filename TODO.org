@@ -13,8 +13,4 @@
   - Allow Python to receive commands from PHP
 - Try to make it possible to recover from a missed message
 - Try to deal with KeyboardInterrupts simultaneously killing PHP
-- Cache resolved static names
-  - Classes and functions can be remembered once resolved
-  - consts could be cached
-  - globals should never be cached
 - Try to auto-generate mypy stubs

@@ -24,6 +24,7 @@ class PHPBridge:
         self._remotes = {}       # type: Dict[Union[int, str], finalize]
         self._collected = set()  # type: Set[Union[int, str]]
         self.functions = {}      # type: Dict[str, Callable]
+        self._cache = {}         # type: Dict[str, Any]
         self._debug = False
         self.__name__ = name
 
@@ -172,17 +173,27 @@ class PHPBridge:
     def resolve(self, path: str, name: str) -> Any:
         if path:
             name = path + '\\' + name
+
+        if name in self._cache:
+            return self._cache[name]
+
         kind, content = self.send_command('resolveName', name)
+
         if kind == 'func':
-            return self.get_function(content)
+            thing = self.get_function(content)
         elif kind == 'class':
-            return self.get_class(content)
+            thing = self.get_class(content)
         elif kind == 'const' or kind == 'global':
-            return content
+            thing = content
         elif kind == 'none':
-            raise AttributeError("No construct named '{}' found".format(name))
+            raise AttributeError("Nothing named '{}' found".format(name))
         else:
             raise RuntimeError("Resolved unknown data type {}".format(kind))
+
+        if kind != 'global':
+            self._cache[name] = thing
+
+        return thing
 
     def get_class(self, name: str) -> objects.PHPClass:
         if name not in self.classes:
