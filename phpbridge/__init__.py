@@ -6,8 +6,8 @@ import subprocess as sp
 import sys
 import types
 
-from collections import ChainMap
-from typing import (Any, Callable, IO, List, Dict,  # noqa: F401
+from collections import ChainMap, OrderedDict
+from typing import (Any, Callable, IO, Iterator, List, Dict,  # noqa: F401
                     Optional, Set, Union)
 from weakref import finalize
 
@@ -148,10 +148,11 @@ class PHPBridge:
             return value
         elif type_ == 'array':
             if isinstance(value, list):
-                return [self.decode(item) for item in value]
+                return Array((str(ind), self.decode(item))
+                             for ind, item in enumerate(value))
             elif isinstance(value, dict):
-                return {key: self.decode(value)
-                        for key, value in value.items()}
+                return Array((key, self.decode(item))
+                             for key, item in value.items())
         elif type_ == 'object':
             cls = self.get_class(value['class'])
             return self.get_object(cls, value['hash'])
@@ -251,6 +252,31 @@ class PHPBridge:
             print("Lost {}".format(ident))
         self._collected.add(ident)
         del self._remotes[ident]
+
+
+class Array(OrderedDict):
+    """An ordered dictionary with some of PHP's idiosyncrasies.
+
+    These can be treated like lists, to some extent. Simple looping yields
+    values, not keys. To get keys, explicitly use .keys(). Keys are
+    automatically converted to strings.
+
+    Creating these arrays yourself or modifying them is a bad idea. This class
+    only exists to deal with PHP's ambiguities. If not consumed immediately,
+    it's best to convert it to a list or a dict, depending on the kind of array
+    you expect.
+    """
+    def __iter__(self) -> Iterator:
+        yield from self.values()
+
+    def __getitem__(self, index: Union[int, str]) -> Any:
+        return super().__getitem__(str(index))
+
+    def __setitem__(self, index: Union[int, str], value: Any) -> None:
+        return super().__setitem__(str(index), value)
+
+    def __delitem__(self, index: Union[int, str]) -> None:
+        return super().__delitem__(str(index))
 
 
 def start_process_unix(fname: str, name: str) -> PHPBridge:

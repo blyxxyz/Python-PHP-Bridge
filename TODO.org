@@ -3,7 +3,6 @@
 - Add a helpers submodule for things like autoloading and Symfony
 - Document more
 - Don't let bridge namespace modules conflict with other modules
-- Decode empty arrays to a dict/list amalgam
 - Publish to PyPi
 - Write tests
 - Don't use stdin and stderr on Windows, if possible

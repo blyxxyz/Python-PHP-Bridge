@@ -6,11 +6,11 @@ You can call functions:
 ```
 >>> from phpbridge import php
 >>> php.array_flip(["foo", "bar"])
-{'foo': 0, 'bar': 1}
+Array([('foo', 0), ('bar', 1)])
 >>> php.echo("foo\n")
 foo
 >>> php.getimagesize("http://php.net/images/logos/new-php-logo.png")
-{'0': 200, '1': 106, '2': 3, '3': 'width="200" height="106"', 'bits': 8, 'mime': 'image/png'}
+Array([('0', 200), ('1', 106), ('2', 3), ('3', 'width="200" height="106"'), ('bits', 8), ('mime', 'image/png')])
 ```
 
 You can create and use objects:
@@ -127,6 +127,7 @@ get_resource_type() expects parameter 1 to be resource, integer given
   * On Windows, stdin and stderr are used to communicate, so PHP can't read input and if it writes to stderr the connection is lost
   * You can only pass basic Python objects into PHP
   * Namespaces can shadow names in an unintuitive way
+  * Because PHP only has one kind of array, its arrays are translated to a special kind of ordered dictionary
 
 # Name conflicts
 Some PHP packages use the same name both for a class and a namespace. As an example, take `nikic/PHP-Parser`.
