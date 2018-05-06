@@ -5,8 +5,8 @@ This is a Python module for running PHP programs. It lets you import PHP functio
 You can call functions:
 ```
 >>> from phpbridge import php
->>> php.array_flip(["foo", "bar"])
-Array([('foo', 0), ('bar', 1)])
+>>> php.array_reverse(['foo', 'bar', 'baz'])
+Array.list(['baz', 'bar', 'foo'])
 >>> php.echo("foo\n")
 foo
 >>> php.getimagesize("http://php.net/images/logos/new-php-logo.png")

@@ -8,7 +8,7 @@ import types
 
 from collections import ChainMap, OrderedDict
 from typing import (Any, Callable, IO, Iterator, List, Dict,  # noqa: F401
-                    Optional, Set, Union)
+                    Iterable, Optional, Set, Union)
 from weakref import finalize
 
 from phpbridge import functions, modules, objects
@@ -148,8 +148,7 @@ class PHPBridge:
             return value
         elif type_ == 'array':
             if isinstance(value, list):
-                return Array((str(ind), self.decode(item))
-                             for ind, item in enumerate(value))
+                return Array.list(map(self.decode, value))
             elif isinstance(value, dict):
                 return Array((key, self.decode(item))
                              for key, item in value.items())
@@ -277,6 +276,20 @@ class Array(OrderedDict):
 
     def __delitem__(self, index: Union[int, str]) -> None:
         return super().__delitem__(str(index))
+
+    @classmethod
+    def list(cls, iterable: Iterable) -> 'Array':
+        """Create by taking values from a list and using indexes as keys."""
+        return cls((str(ind), item)  # type: ignore
+                   for ind, item in enumerate(iterable))
+
+    def __repr__(self) -> str:
+        if all(a == b for a, b in zip(self.keys(),
+                                      map(str, range(len(self))))):
+            # Could have been created from a list
+            return "{}.list({})".format(self.__class__.__name__,
+                                        list(self.values()))
+        return super().__repr__()
 
 
 def start_process_unix(fname: str, name: str) -> PHPBridge:
