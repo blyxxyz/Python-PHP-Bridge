@@ -1,6 +1,9 @@
 - Convert use of send_command to bridge methods
 - Change phpbridge.classes to use inherited fake traits
 - Add a helpers submodule for things like autoloading and Symfony
+  - If composer dump-autoload -o is used, namespaces could be imported in advance and importing new ones could be disabled after that
+    - This would help with some nasty edge cases in the current system
+  - A clean way to get Symfony services
 - Document more
 - Don't let bridge namespace modules conflict with other modules
 - Publish to PyPi
