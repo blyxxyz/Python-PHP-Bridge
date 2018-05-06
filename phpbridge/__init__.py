@@ -284,8 +284,7 @@ class Array(OrderedDict):
                    for ind, item in enumerate(iterable))
 
     def __repr__(self) -> str:
-        if all(a == b for a, b in zip(self.keys(),
-                                      map(str, range(len(self))))):
+        if all(str(ind) == key for ind, key in enumerate(self.keys())):
             # Could have been created from a list
             return "{}.list({})".format(self.__class__.__name__,
                                         list(self.values()))
