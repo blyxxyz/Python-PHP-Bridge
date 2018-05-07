@@ -76,6 +76,12 @@ class PHPObject(metaclass=PHPClass):
              'name': attr,
              'value': self._bridge.encode(value)})
 
+    def __delattr__(self, attr: str) -> None:
+        self._bridge.send_command(
+            'unsetProperty',
+            {'obj': self._bridge.encode(self),
+             'name': attr})
+
     def __dir__(self) -> List[str]:
         return super().__dir__() + self._bridge.send_command(  # type: ignore
             'listNonDefaultProperties', self._bridge.encode(self))

@@ -242,6 +242,12 @@ class Commands
      */
     public static function unsetProperty($obj, string $name)
     {
+        if (!property_exists($obj, $name)) {
+            $class = get_class($obj);
+            throw new AttributeError(
+                "'$class' object has no property '$name'"
+            );
+        }
         unset($obj->$name);
         return null;
     }
