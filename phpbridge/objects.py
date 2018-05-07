@@ -312,12 +312,11 @@ class PHPResource:
     type (represented by a string) and an identifier used for reference
     counting.
     """
-    def __init__(self, bridge: 'PHPBridge', type_: str, id_: str) -> None:
+    def __init__(self, bridge: 'PHPBridge', type_: str, id_: int) -> None:
         # Leading underscores are not necessary here but nice for consistency
         self._bridge = bridge
         self._type = type_
         self._id = id_
-        bridge._register(id_, self)
 
     def __repr__(self) -> str:
         """Mimics print_r output for resources, but more informative."""

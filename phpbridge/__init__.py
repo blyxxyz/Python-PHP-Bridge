@@ -156,7 +156,7 @@ class PHPBridge:
             cls = self.get_class(value['class'])
             return self.get_object(cls, value['hash'])
         elif type_ == 'resource':
-            return objects.PHPResource(self, value['type'], value['hash'])
+            return self.get_resource(value['type'], value['hash'])
         elif type_ == 'bytes':
             # PHP's strings are just byte arrays
             # Decoding this to a bytes object would be problematic
@@ -224,6 +224,14 @@ class PHPBridge:
         object.__setattr__(new_obj, '_hash', hash_)
         self._register(hash_, new_obj)
         return new_obj          # type: ignore
+
+    def get_resource(self, type_: str, id_: int) -> objects.PHPResource:
+        resource = self._lookup(id_)
+        if resource is not None:
+            return resource     # type: ignore
+        new_resource = objects.PHPResource(self, type_, id_)
+        self._register(id_, new_resource)
+        return new_resource
 
     def _register(self, ident: Union[int, str],
                   entity: Union[objects.PHPResource,
