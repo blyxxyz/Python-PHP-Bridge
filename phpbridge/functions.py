@@ -22,7 +22,8 @@ def parse_type_info(bridge: 'PHPBridge', info: Dict[str, Any]) -> Any:
             # PHP just lets that happen, because the annotation might start
             # existing in the future. So we'll allow it too. But we can't get
             # the class, so use the name of the class instead.
-            annotation = info['name']
+            annotation = (modules.get_module(bridge, info['name']) + '.' +
+                          modules.basename(info['name']))
     else:
         annotation = objects.php_types.get(info['name'], info['name'])
     if info['nullable']:
@@ -52,6 +53,13 @@ def make_signature(bridge: 'PHPBridge', info: Dict[str, Any],
             annotation=Parameter.empty))
         used_names.add(add_first)
 
+    # Mysteriously enough, PHP lets you make a function with default arguments
+    # before arguments without a default. Python doesn't. So if that happens,
+    # we mark it as an unknown default.
+    # default_required is set to True as soon as we find the first parameter
+    # with a default value.
+    default_required = False
+
     for param in info['params']:
 
         for param_name in different_name(param['name']):
@@ -67,6 +75,13 @@ def make_signature(bridge: 'PHPBridge', info: Dict[str, Any],
             # Some methods have optional parameters without (visible) default
             # values. We'll use this to represent those.
             default = utils.unknown_param_default
+
+        if default_required and default is Parameter.empty:
+            default = utils.unknown_param_default
+
+        if default is not Parameter.empty:
+            # From now on, we need a default value even if we can't find one.
+            default_required = True
 
         if param['type'] is None:
             annotation = Parameter.empty
