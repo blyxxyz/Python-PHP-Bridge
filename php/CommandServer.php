@@ -294,9 +294,19 @@ abstract class CommandServer
             case 'listNonDefaultProperties':
                 return Commands::listNonDefaultProperties($this->decode($data));
             case 'classInfo':
-                return Commands::classInfo($data);
+                $classInfo =  Commands::classInfo($data);
+                foreach ($classInfo['methods'] as &$method) {
+                    foreach ($method['params'] as &$param) {
+                        $param['default'] = $this->encode($param['default']);
+                    }
+                }
+                return $classInfo;
             case 'funcInfo':
-                return Commands::funcInfo($data);
+                $funcInfo = Commands::funcInfo($data);
+                foreach ($funcInfo['params'] as &$param) {
+                    $param['default'] = $this->encode($param['default']);
+                }
+                return $funcInfo;
             case 'listConsts':
                 return Commands::listConsts();
             case 'listGlobals':

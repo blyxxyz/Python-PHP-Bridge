@@ -67,7 +67,7 @@ def make_signature(bridge: 'PHPBridge', info: Dict[str, Any],
                 used_names.add(param_name)
                 break
 
-        default = (param['default'] if param['hasDefault'] else
+        default = (bridge.decode(param['default']) if param['hasDefault'] else
                    Parameter.empty)
 
         if (param['isOptional'] and not param['variadic'] and
