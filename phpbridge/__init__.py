@@ -46,7 +46,10 @@ class PHPBridge:
     def receive(self) -> Any:
         line = self.output.readline()
         if self._debug:
-            print(line)
+            print(line, end='')
+        if not line:
+            # Empty response, not even a newline
+            raise RuntimeError("Connection closed")
         response = json.loads(line)
         for key in response['collected']:
             if self._debug:
@@ -312,6 +315,8 @@ def start_process_unix(fname: str, name: str) -> PHPBridge:
     sp.Popen(['php', fname, 'php://fd/{}'.format(php_in),
               'php://fd/{}'.format(php_out)],
              pass_fds=[0, 1, 2, php_in, php_out])
+    os.close(php_in)
+    os.close(php_out)
     return PHPBridge(os.fdopen(py_in, 'w'), os.fdopen(py_out, 'r'), name)
 
 
