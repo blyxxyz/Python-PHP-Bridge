@@ -268,8 +268,8 @@ class Array(OrderedDict):
     """An ordered dictionary with some of PHP's idiosyncrasies.
 
     These can be treated like lists, to some extent. Simple looping yields
-    values, not keys. To get keys, explicitly use .keys(). Keys are
-    automatically converted to strings.
+    values, not keys. To get keys, explicitly use .keys(). Positive integer
+    keys are automatically converted to strings.
 
     Creating these arrays yourself or modifying them is a bad idea. This class
     only exists to deal with PHP's ambiguities. If not consumed immediately,
@@ -279,14 +279,22 @@ class Array(OrderedDict):
     def __iter__(self) -> Iterator:
         yield from self.values()
 
-    def __getitem__(self, index: Union[int, str]) -> Any:
-        return super().__getitem__(str(index))
+    def __getitem__(self, index: Union[int, str, slice]) -> Any:
+        if isinstance(index, slice) or isinstance(index, int) and index < 0:
+            return list(self.values())[index]
+        if isinstance(index, int):
+            index = str(index)
+        return super().__getitem__(index)
 
     def __setitem__(self, index: Union[int, str], value: Any) -> None:
-        return super().__setitem__(str(index), value)
+        if isinstance(index, int):
+            index = str(index)
+        return super().__setitem__(index, value)
 
     def __delitem__(self, index: Union[int, str]) -> None:
-        return super().__delitem__(str(index))
+        if isinstance(index, int):
+            index = str(index)
+        return super().__delitem__(index)
 
     @classmethod
     def list(cls, iterable: Iterable) -> 'Array':
