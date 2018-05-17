@@ -286,15 +286,22 @@ class Array(OrderedDict):
             index = str(index)
         return super().__getitem__(index)
 
+    def __contains__(self, value: Any) -> bool:
+        return value in self.values()
+
     def __setitem__(self, index: Union[int, str], value: Any) -> None:
         if isinstance(index, int):
             index = str(index)
-        return super().__setitem__(index, value)
+        super().__setitem__(index, value)
 
     def __delitem__(self, index: Union[int, str]) -> None:
         if isinstance(index, int):
             index = str(index)
-        return super().__delitem__(index)
+        super().__delitem__(index)
+
+    def listable(self) -> bool:
+        """Return whether the array could be created from a list."""
+        return all(str(ind) == key for ind, key in enumerate(self.keys()))
 
     @classmethod
     def list(cls, iterable: Iterable) -> 'Array':
@@ -303,9 +310,7 @@ class Array(OrderedDict):
                    for ind, item in enumerate(iterable))
 
     def __repr__(self) -> str:
-        if self and all(str(ind) == key
-                        for ind, key in enumerate(self.keys())):
-            # Could be created from a list and is not empty
+        if self and self.listable():
             return "{}.list({})".format(self.__class__.__name__,
                                         list(self.values()))
         return super().__repr__()
