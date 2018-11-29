@@ -163,4 +163,9 @@ If there are no conflicts, things work as expected:
 ```
 
 # Installing
+
+```
+pip3 install phpbridge
+```
+
 The only dependencies are PHP 7.0+, Python 3.5+, ext-json and ext-reflection. Composer can be used to install development tools and set up autoloading, but it's not required.
