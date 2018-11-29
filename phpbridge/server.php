@@ -14,7 +14,7 @@ declare(strict_types=1);
 // Adapted from the PHP-FIG example autoloader
 spl_autoload_register(function ($class) {
     $prefix = 'blyxxyz\\PythonServer\\';
-    $base_dir = __DIR__ . '/php/';
+    $base_dir = __DIR__ . '/php-server/';
 
     $len = strlen($prefix);
     if (strncmp($prefix, $class, $len) !== 0) {

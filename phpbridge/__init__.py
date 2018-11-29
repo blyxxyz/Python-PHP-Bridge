@@ -14,7 +14,7 @@ from weakref import finalize
 from phpbridge import functions, modules, objects
 
 php_server_path = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)), 'server.php')
+    os.path.dirname(__file__), 'server.php')
 
 
 class PHPBridge:
