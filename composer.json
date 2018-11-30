@@ -21,6 +21,8 @@
         "ext-Reflection": "*"
     },
     "autoload": {
-        "psr-4": {"blyxxyz\\PythonServer\\": "php/"}
+        "psr-4": {
+            "blyxxyz\\PythonServer\\": "phpbridge/php-server"
+        }
     }
 }
