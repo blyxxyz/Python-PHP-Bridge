@@ -62,7 +62,7 @@ class PHPBridge:
         if response['type'] == 'exception':
             try:
                 exception = self.decode(response['data']['value'])
-            except Exception as e:
+            except Exception:
                 raise Exception(
                     "Failed decoding exception with message '{}'".format(
                         response['data']['message']))

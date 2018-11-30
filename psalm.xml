@@ -5,7 +5,7 @@
     xsi:schemaLocation="/home/ring/software/python-php-bridge/vendor/vimeo/psalm/src/config.xsd"
 >
     <projectFiles>
-        <directory name="php" />
+        <directory name="phpbridge/php-server" />
     </projectFiles>
 
     <issueHandlers>

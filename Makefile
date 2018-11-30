@@ -5,7 +5,7 @@ php: phpcs psalm
 python: flake8 mypy
 
 phpcs:
-	vendor/bin/phpcs --standard=PSR2 php
+	vendor/bin/phpcs --standard=PSR2 phpbridge/php-server
 
 psalm:
 	vendor/bin/psalm
