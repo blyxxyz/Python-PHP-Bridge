@@ -3,7 +3,7 @@ This is a Python module for running PHP programs. It lets you import PHP functio
 # Examples
 
 You can call functions:
-```
+```pycon
 >>> from phpbridge import php
 >>> php.array_reverse(['foo', 'bar', 'baz'])
 Array.list(['baz', 'bar', 'foo'])
@@ -14,7 +14,7 @@ Array([('0', 200), ('1', 106), ('2', 3), ('3', 'width="200" height="106"'), ('bi
 ```
 
 You can create and use objects:
-```
+```pycon
 >>> php.DateTime
 <PHP class 'DateTime'>
 >>> date = php.DateTime()
@@ -29,13 +29,13 @@ True
 ```
 
 You can use keyword arguments, even though PHP doesn't support them:
-```
+```pycon
 >>> date.setDate(year=1900, day=20, month=10)
 <DateTime PHP object (date='1900-10-20 22:59:15.114277', timezone_type=3, timezone='Europe/Berlin')>
 ```
 
 You can loop over iterators and traversables:
-```
+```pycon
 >>> for path, file in php.RecursiveIteratorIterator(php.RecursiveDirectoryIterator('.git/logs')):
 ...     print("{}: {}".format(path, file.getSize()))
 ...
@@ -46,7 +46,7 @@ You can loop over iterators and traversables:
 ```
 
 You can get help:
-```
+```pycon
 >>> help(php.echo)
 Help on function echo:
 
@@ -60,7 +60,7 @@ echo(arg1, *rest)
 ```
 
 You can import namespaces as modules:
-```
+```pycon
 >>> from phpbridge.php.blyxxyz.PythonServer import NonFunctionProxy
 >>> help(NonFunctionProxy)
 Help on class blyxxyz\PythonServer\NonFunctionProxy in module phpbridge.php.blyxxyz.PythonServer:
@@ -88,7 +88,7 @@ class blyxxyz\PythonServer\NonFunctionProxy(phpbridge.objects.PHPObject)
 ```
 
 You can index, and get lengths:
-```
+```pycon
 >>> arr = php.ArrayObject(['foo', 'bar', 'baz'])
 >>> arr[10] = 'foobar'
 >>> len(arr)
@@ -96,7 +96,7 @@ You can index, and get lengths:
 ```
 
 You can work with PHP's exceptions:
-```
+```pycon
 >>> try:
 ...     php.get_resource_type(3)
 ... except php.TypeError as e:
@@ -135,7 +135,7 @@ Some PHP packages use the same name both for a class and a namespace. As an exam
 `PhpParser\Node` is a class, but `PhpParser\Node\Param` is also a class. This means `phpbridge.php.PhpParser.Node` becomes ambiguous - it could either refer to the `Node` class, or the namespace of the `Param` class.
 
 In case of such a conflict, the class is preferred over the namespace. To get `Param`, a `from` import has to be used:
-```
+```pycon
 >>> php.require('vendor/autoload.php')
 <Composer.Autoload.ClassLoader PHP object (prefixLengthsPsr4=[...: (4)], ...>
 >>> import phpbridge.php.PhpParser.Node as Node           # Not the namespace!
@@ -151,7 +151,7 @@ AttributeError: type object 'PhpParser\Node' has no attribute 'Param'
 ```
 
 If there are no conflicts, things work as expected:
-```
+```pycon
 >>> from phpbridge.php.blyxxyz.PythonServer import Commands
 >>> Commands
 <PHP class 'blyxxyz\PythonServer\Commands'>
