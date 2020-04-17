@@ -10,26 +10,30 @@
 
 declare(strict_types=1);
 
+if (file_exists(__DIR__ . '/../../../../vendor/autoload.php')) {
+    require_once __DIR__ . '/../../../../vendor/autoload.php';
+} else {
+    // Adapted from the PHP-FIG example autoloader
+    spl_autoload_register(function ($class) {
+        $prefix = 'blyxxyz\\PythonServer\\';
+        $base_dir = __DIR__ . '/php-server/';
 
-// Adapted from the PHP-FIG example autoloader
-spl_autoload_register(function ($class) {
-    $prefix = 'blyxxyz\\PythonServer\\';
-    $base_dir = __DIR__ . '/php-server/';
+        $len = strlen($prefix);
+        if (strncmp($prefix, $class, $len) !== 0) {
+            return;
+        }
 
-    $len = strlen($prefix);
-    if (strncmp($prefix, $class, $len) !== 0) {
-        return;
-    }
+        $relative_class = substr($class, $len);
 
-    $relative_class = substr($class, $len);
+        $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
 
-    $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
+        if (file_exists($file)) {
+            /** @noinspection PhpIncludeInspection */
+            require $file;
+        }
+    });
+}
 
-    if (file_exists($file)) {
-        /** @noinspection PhpIncludeInspection */
-        require $file;
-    }
-});
 
 $server = new \blyxxyz\PythonServer\StdioCommandServer($argv[1], $argv[2]);
 if ($argv[2] === 'php://stderr') {
